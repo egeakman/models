@@ -145,19 +145,18 @@ class OrbitExperimentRunner:
       self) -> Optional[tf.train.CheckpointManager]:
     """Maybe create a CheckpointManager."""
     assert self.trainer is not None
-    if self.trainer.checkpoint:
-      if self.model_dir is None:
-        raise ValueError('model_dir must be specified, but got None')
-      checkpoint_manager = tf.train.CheckpointManager(
-          self.trainer.checkpoint,
-          directory=self.model_dir,
-          max_to_keep=self.params.trainer.max_to_keep,
-          step_counter=self.trainer.global_step,
-          checkpoint_interval=self.params.trainer.checkpoint_interval,
-          init_fn=self.trainer.initialize)
-    else:
-      checkpoint_manager = None
-    return checkpoint_manager
+    if not self.trainer.checkpoint:
+      return None
+    if self.model_dir is None:
+      raise ValueError('model_dir must be specified, but got None')
+    return tf.train.CheckpointManager(
+        self.trainer.checkpoint,
+        directory=self.model_dir,
+        max_to_keep=self.params.trainer.max_to_keep,
+        step_counter=self.trainer.global_step,
+        checkpoint_interval=self.params.trainer.checkpoint_interval,
+        init_fn=self.trainer.initialize,
+    )
 
   def _build_controller(self,
                         trainer,
@@ -167,7 +166,7 @@ class OrbitExperimentRunner:
                         eval_actions: Optional[List[orbit.Action]] = None,
                         controller_cls=orbit.Controller) -> orbit.Controller:
     """Builds a Orbit controler."""
-    train_actions = [] if not train_actions else train_actions
+    train_actions = train_actions or []
     if trainer:
       train_actions += actions.get_train_actions(
           self.params,
@@ -175,12 +174,12 @@ class OrbitExperimentRunner:
           self.model_dir,
           checkpoint_manager=self.checkpoint_manager)
 
-    eval_actions = [] if not eval_actions else eval_actions
+    eval_actions = eval_actions or []
     if evaluator:
       eval_actions += actions.get_eval_actions(self.params, evaluator,
                                                self.model_dir)
 
-    controller = controller_cls(
+    return controller_cls(
         strategy=self.strategy,
         trainer=trainer,
         evaluator=evaluator,
@@ -195,8 +194,8 @@ class OrbitExperimentRunner:
         summary_interval=self.params.trainer.summary_interval if
         (save_summary) else None,
         train_actions=train_actions,
-        eval_actions=eval_actions)
-    return controller
+        eval_actions=eval_actions,
+    )
 
   def run(self) -> Tuple[tf.keras.Model, Mapping[str, Any]]:
     """Run experiments by mode.
@@ -211,7 +210,7 @@ class OrbitExperimentRunner:
     params = self.params
     logging.info('Starts to execute mode: %s', mode)
     with self.strategy.scope():
-      if mode == 'train' or mode == 'train_and_post_eval':
+      if mode in ['train', 'train_and_post_eval']:
         self.controller.train(steps=params.trainer.train_steps)
       elif mode == 'train_and_eval':
         self.controller.train_and_evaluate(
@@ -223,16 +222,14 @@ class OrbitExperimentRunner:
       elif mode == 'continuous_eval':
 
         def timeout_fn():
-          if self.trainer.global_step.numpy() >= params.trainer.train_steps:
-            return True
-          return False
+          return self.trainer.global_step.numpy() >= params.trainer.train_steps
 
         self.controller.evaluate_continuously(
             steps=params.trainer.validation_steps,
             timeout=params.trainer.continuous_eval_timeout,
             timeout_fn=timeout_fn)
       else:
-        raise NotImplementedError('The mode is not implemented: %s' % mode)
+        raise NotImplementedError(f'The mode is not implemented: {mode}')
 
     num_params = train_utils.try_count_params(self.trainer.model)
     if num_params is not None:

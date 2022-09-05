@@ -189,12 +189,11 @@ class Parser(MaskrcnnParser):
 
     # Gets original image and its size.
     image = data['image']
-    image_shape = tf.shape(image)[0:2]
+    image_shape = tf.shape(image)[:2]
 
     # Normalizes image with mean and std pixel values.
     image = input_utils.normalize_image(image)
 
-    # Flips image randomly during training.
     if self._aug_rand_hflip:
       if self._include_mask:
         image, boxes, masks = input_utils.random_horizontal_flip(

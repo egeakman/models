@@ -84,10 +84,10 @@ def metrics_as_dict(metric):
 def metric_results(metric):
   """Collects results from the given metric(s)."""
   metrics = metrics_as_dict(metric)
-  metric_result = {
-      name: m.result().numpy().astype(float) for name, m in metrics.items()
+  return {
+      name: m.result().numpy().astype(float)
+      for name, m in metrics.items()
   }
-  return metric_result
 
 
 def reset_states(metric):
@@ -182,8 +182,7 @@ class DistributedExecutor(object):
       if not tf.io.gfile.exists(model_dir):
         tf.io.gfile.makedirs(model_dir)
       self._params.lock()
-      params_dict.save_params_dict_to_yaml(self._params,
-                                           model_dir + '/params.yaml')
+      params_dict.save_params_dict_to_yaml(self._params, f'{model_dir}/params.yaml')
     else:
       logging.warning('model_dir is empty, so skip the save config.')
 
@@ -202,14 +201,10 @@ class DistributedExecutor(object):
 
     if input_fn is None:
       return None
-    # When training with multiple TPU workers, datasets needs to be cloned
-    # across workers. Since Dataset instance cannot be cloned in eager mode,
-    # we instead pass callable that returns a dataset.
     if self._is_multi_host:
       return iter(strategy.distribute_datasets_from_function(input_fn))
-    else:
-      input_data = input_fn()
-      return iter(strategy.experimental_distribute_dataset(input_data))
+    input_data = input_fn()
+    return iter(strategy.experimental_distribute_dataset(input_data))
 
   def _create_replicated_step(self,
                               strategy,
@@ -399,11 +394,7 @@ class DistributedExecutor(object):
     if save_config:
       self._save_config(model_dir)
 
-    if FLAGS.save_checkpoint_freq:
-      save_freq = FLAGS.save_checkpoint_freq
-    else:
-      save_freq = iterations_per_loop
-
+    save_freq = FLAGS.save_checkpoint_freq or iterations_per_loop
     params = self._params
     strategy = self._strategy
     # To reduce unnecessary send/receive input pipeline operation, we place

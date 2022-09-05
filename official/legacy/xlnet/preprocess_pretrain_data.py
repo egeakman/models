@@ -65,28 +65,11 @@ def format_filename(prefix, bsz_per_host, seq_len, bi_data, suffix,
                     mask_alpha=5, mask_beta=1, reuse_len=None, uncased=False,
                     fixed_num_predict=None):
   """docs."""
-  if reuse_len is None:
-    reuse_len_str = ""
-  else:
-    reuse_len_str = "reuse-{}.".format(reuse_len)
-  if not uncased:
-    uncased_str = ""
-  else:
-    uncased_str = "uncased."
-  if bi_data:
-    bi_data_str = "bi"
-  else:
-    bi_data_str = "uni"
-  if fixed_num_predict is not None:
-    fnp_str = "fnp-{}.".format(fixed_num_predict)
-  else:
-    fnp_str = ""
-
-  file_name = "{}.bsz-{}.seqlen-{}.{}{}{}.alpha-{}.beta-{}.{}{}".format(
-      prefix, bsz_per_host, seq_len, reuse_len_str, uncased_str, bi_data_str,
-      mask_alpha, mask_beta, fnp_str, suffix)
-
-  return file_name
+  reuse_len_str = "" if reuse_len is None else f"reuse-{reuse_len}."
+  uncased_str = "uncased." if uncased else ""
+  bi_data_str = "bi" if bi_data else "uni"
+  fnp_str = f"fnp-{fixed_num_predict}." if fixed_num_predict is not None else ""
+  return f"{prefix}.bsz-{bsz_per_host}.seqlen-{seq_len}.{reuse_len_str}{uncased_str}{bi_data_str}.alpha-{mask_alpha}.beta-{mask_beta}.{fnp_str}{suffix}"
 
 
 def _create_data(idx, input_paths):
@@ -106,13 +89,7 @@ def _create_data(idx, input_paths):
         logging.info("Loading line %d", line_cnt)
       line_cnt += 1
 
-      if not line.strip():
-        if FLAGS.use_eod:
-          sent_id = not sent_id
-          cur_sent = [EOD_ID]
-        else:
-          continue
-      else:
+      if line.strip():
         if FLAGS.from_raw_text:
           cur_sent = preprocess_utils.preprocess_text(
               line.strip(), lower=FLAGS.uncased)
@@ -120,6 +97,11 @@ def _create_data(idx, input_paths):
         else:
           cur_sent = list(map(int, line.strip().split()))
 
+      elif FLAGS.use_eod:
+        sent_id = not sent_id
+        cur_sent = [EOD_ID]
+      else:
+        continue
       input_data.extend(cur_sent)
       sent_ids.extend([sent_id] * len(cur_sent))
       sent_id = not sent_id
@@ -167,7 +149,7 @@ def _create_data(idx, input_paths):
 
   file_name, cur_num_batch = create_tfrecords(
       save_dir=tfrecord_dir,
-      basename="{}-{}-{}".format(FLAGS.split, idx, FLAGS.pass_id),
+      basename=f"{FLAGS.split}-{idx}-{FLAGS.pass_id}",
       data=[input_data, sent_ids],
       bsz_per_host=FLAGS.bsz_per_host,
       seq_len=FLAGS.seq_len,
@@ -178,12 +160,7 @@ def _create_data(idx, input_paths):
   filenames.append(file_name)
   num_batch += cur_num_batch
 
-  record_info = {
-      "filenames": filenames,
-      "num_batch": num_batch
-  }
-
-  return record_info
+  return {"filenames": filenames, "num_batch": num_batch}
 
 
 def create_data(_):
@@ -236,8 +213,7 @@ def create_data(_):
                FLAGS.task, len(task_file_paths), task_file_paths)
   record_info = _create_data(FLAGS.task, task_file_paths)
 
-  record_prefix = "record_info-{}-{}-{}".format(
-      FLAGS.split, FLAGS.task, FLAGS.pass_id)
+  record_prefix = f"record_info-{FLAGS.split}-{FLAGS.task}-{FLAGS.pass_id}"
   record_name = format_filename(
       prefix=record_prefix,
       bsz_per_host=FLAGS.bsz_per_host,
@@ -264,9 +240,7 @@ def batchify(data, bsz_per_host, sent_ids=None):
     sent_ids = sent_ids[:bsz_per_host * num_step]
     sent_ids = sent_ids.reshape(bsz_per_host, num_step)
 
-  if sent_ids is not None:
-    return data, sent_ids
-  return data
+  return (data, sent_ids) if sent_ids is not None else data
 
 
 def _split_a_and_b(data, sent_ids, begin_idx, tot_len, extend_target=False):
@@ -288,13 +262,9 @@ def _split_a_and_b(data, sent_ids, begin_idx, tot_len, extend_target=False):
     end_idx += 1
 
   a_begin = begin_idx
-  if len(cut_points) == 0 or random.random() < 0.5:  # pylint:disable=g-explicit-length-test
+  if not cut_points or random.random() < 0.5:  # pylint:disable=g-explicit-length-test
     label = 0
-    if len(cut_points) == 0:  # pylint:disable=g-explicit-length-test
-      a_end = end_idx
-    else:
-      a_end = random.choice(cut_points)
-
+    a_end = random.choice(cut_points) if cut_points else end_idx
     b_len = max(1, tot_len - (a_end - a_begin))
     # (zihangd): `data_len - 1` to account for extend_target
     b_begin = random.randint(0, data_len - 1 - b_len)
@@ -338,11 +308,8 @@ def _split_a_and_b(data, sent_ids, begin_idx, tot_len, extend_target=False):
 
 def _is_start_piece(piece):
   special_pieces = set(list('!"#$%&\"()*+,-./:;?@[\\]^_`{|}~'))
-  if (piece.startswith("▁") or piece.startswith("<")
-      or piece in special_pieces):
-    return True
-  else:
-    return False
+  return bool((piece.startswith("▁") or piece.startswith("<")
+               or piece in special_pieces))
 
 
 def _sample_mask(sp, seg, reverse=False, max_gram=5, goal_num_predict=None):
@@ -360,9 +327,8 @@ def _sample_mask(sp, seg, reverse=False, max_gram=5, goal_num_predict=None):
     seg = np.flip(seg, 0)
 
   cur_len = 0
-  while cur_len < seg_len:
-    if goal_num_predict is not None and num_predict >= goal_num_predict: break
-
+  while cur_len < seg_len and not (goal_num_predict is not None
+                                   and num_predict >= goal_num_predict):
     n = np.random.choice(ngrams, p=pvals)
     if goal_num_predict is not None:
       n = min(n, goal_num_predict - num_predict)
@@ -423,9 +389,8 @@ def _sample_mask_ngram(sp, seg, reverse=False, max_gram=5,
     seg = np.flip(seg, 0)
 
   cur_len = 0
-  while cur_len < seg_len:
-    if goal_num_predict is not None and num_predict >= goal_num_predict: break
-
+  while cur_len < seg_len and not (goal_num_predict is not None
+                                   and num_predict >= goal_num_predict):
     n = np.random.choice(ngrams, p=pvals)
     if goal_num_predict is not None:
       n = min(n, goal_num_predict - num_predict)
@@ -590,15 +555,14 @@ def create_tfrecords(save_dir, basename, data, bsz_per_host, seq_len,
       }
       features.append(feature)
 
-    if all_ok:
-      assert len(features) == bsz_per_host
-      for feature in features:
-        example = tf.train.Example(features=tf.train.Features(feature=feature))
-        record_writer.write(example.SerializeToString())
-      num_batch += 1
-    else:
+    if not all_ok:
       break
 
+    assert len(features) == bsz_per_host
+    for feature in features:
+      example = tf.train.Example(features=tf.train.Features(feature=feature))
+      record_writer.write(example.SerializeToString())
+    num_batch += 1
     i += reuse_len
 
   record_writer.close()
@@ -717,8 +681,7 @@ def _local_perm(inputs, targets, is_masked, perm_size, seq_len):
   perm_mask = tf.cast(perm_mask, tf.float32)
 
   # new target: [next token] for LM and [curr token] (self) for PLM
-  new_targets = tf.concat([inputs[0: 1], targets[: -1]],
-                          axis=0)
+  new_targets = tf.concat([inputs[:1], targets[: -1]], axis=0)
 
   # construct inputs_k
   inputs_k = inputs
@@ -726,7 +689,7 @@ def _local_perm(inputs, targets, is_masked, perm_size, seq_len):
   # construct inputs_q
   inputs_q = target_mask
 
-  return perm_mask, new_targets, target_mask, inputs_k, inputs_q
+  return perm_mask, new_targets, inputs_q, inputs_k, inputs_q
 
 
 def get_dataset(params, num_hosts, num_core_per_host, split, file_names,
@@ -737,12 +700,7 @@ def get_dataset(params, num_hosts, num_core_per_host, split, file_names,
   del mask_alpha
   del mask_beta
   bsz_per_core = params["batch_size"]
-  if num_hosts > 1:
-    host_id = params["context"].current_host
-  else:
-    host_id = 0
-
-    #### Function used to parse tfrecord
+  host_id = params["context"].current_host if num_hosts > 1 else 0
   def parser(record):
     """function used to parse tfrecord."""
 

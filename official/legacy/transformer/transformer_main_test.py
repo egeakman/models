@@ -34,7 +34,7 @@ WEIGHT_PATTERN = re.compile(r'weights-epoch-.+\.hdf5')
 def _generate_file(filepath, lines):
   with open(filepath, 'w') as f:
     for l in lines:
-      f.write('{}\n'.format(l))
+      f.write(f'{l}\n')
 
 
 class TransformerTaskTest(tf.test.TestCase):
@@ -92,10 +92,7 @@ class TransformerTaskTest(tf.test.TestCase):
     if context.num_gpus() >= 2:
       self.skipTest('No need to test 2+ GPUs without a distribution strategy.')
     FLAGS.distribution_strategy = 'one_device'
-    if tf.test.is_built_with_cuda():
-      FLAGS.num_gpus = 1
-    else:
-      FLAGS.num_gpus = 0
+    FLAGS.num_gpus = 1 if tf.test.is_built_with_cuda() else 0
     FLAGS.static_batch = True
     t = transformer_main.TransformerTask(FLAGS)
     t.train()
@@ -117,8 +114,8 @@ class TransformerTaskTest(tf.test.TestCase):
   def test_train_2_gpu(self):
     if context.num_gpus() < 2:
       self.skipTest(
-          '{} GPUs are not available for this test. {} GPUs are available'
-          .format(2, context.num_gpus()))
+          f'2 GPUs are not available for this test. {context.num_gpus()} GPUs are available'
+      )
     FLAGS.distribution_strategy = 'mirrored'
     FLAGS.num_gpus = 2
     FLAGS.param_set = 'base'
@@ -129,8 +126,8 @@ class TransformerTaskTest(tf.test.TestCase):
   def test_train_2_gpu_fp16(self):
     if context.num_gpus() < 2:
       self.skipTest(
-          '{} GPUs are not available for this test. {} GPUs are available'
-          .format(2, context.num_gpus()))
+          f'2 GPUs are not available for this test. {context.num_gpus()} GPUs are available'
+      )
     FLAGS.distribution_strategy = 'mirrored'
     FLAGS.num_gpus = 2
     FLAGS.param_set = 'base'
@@ -148,7 +145,7 @@ class TransformerTaskTest(tf.test.TestCase):
         "'<pad>'", "'<EOS>'", "'_'", "'a'", "'b'", "'c'", "'d'", "'a_'", "'b_'",
         "'c_'", "'d_'"
     ]
-    tokens += ["'{}'".format(i) for i in range(self.vocab_size - len(tokens))]
+    tokens += [f"'{i}'" for i in range(self.vocab_size - len(tokens))]
     _generate_file(self.vocab_file, tokens)
     _generate_file(self.bleu_source, ['a b', 'c d'])
     _generate_file(self.bleu_ref, ['a b', 'd c'])
@@ -156,9 +153,9 @@ class TransformerTaskTest(tf.test.TestCase):
     # Update flags.
     update_flags = [
         'ignored_program_name',
-        '--vocab_file={}'.format(self.vocab_file),
-        '--bleu_source={}'.format(self.bleu_source),
-        '--bleu_ref={}'.format(self.bleu_ref),
+        f'--vocab_file={self.vocab_file}',
+        f'--bleu_source={self.bleu_source}',
+        f'--bleu_ref={self.bleu_ref}',
     ]
     if extra_flags:
       update_flags.extend(extra_flags)

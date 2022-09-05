@@ -67,18 +67,17 @@ class ExportModule(tf.Module, metaclass=abc.ABCMeta):
 
     if inference_step is not None:
       self.inference_step = functools.partial(inference_step, model=self.model)
+    elif issubclass(type(model), tf.keras.Model):
+      # Default to self.model.call instead of self.model.__call__ to avoid
+      # keras tracing logic designed for training.
+      # Since most of Model Garden's call doesn't not have training kwargs
+      # or the default is False, we don't pass anything here.
+      # Please pass custom inference step if your model has training=True as
+      # default.
+      self.inference_step = self.model.call
     else:
-      if issubclass(type(model), tf.keras.Model):
-        # Default to self.model.call instead of self.model.__call__ to avoid
-        # keras tracing logic designed for training.
-        # Since most of Model Garden's call doesn't not have training kwargs
-        # or the default is False, we don't pass anything here.
-        # Please pass custom inference step if your model has training=True as
-        # default.
-        self.inference_step = self.model.call
-      else:
-        self.inference_step = functools.partial(
-            self.model.__call__, training=False)
+      self.inference_step = functools.partial(
+          self.model.__call__, training=False)
     self.preprocessor = preprocessor
     self.postprocessor = postprocessor
 
@@ -135,8 +134,8 @@ def export(export_module: ExportModule,
       }
     else:
       raise ValueError(
-          'If the function_keys is a list, it must contain a single element. %s'
-          % function_keys)
+          f'If the function_keys is a list, it must contain a single element. {function_keys}'
+      )
 
   signatures = export_module.get_inference_signatures(function_keys)
   if timestamped:

@@ -157,11 +157,12 @@ def convert_predictions_to_coco_annotations(predictions):
             mask_api.encode(np.asfortranarray(binary_mask))
             for binary_mask in list(binary_masks)]
       for k in range(max_num_detections):
-        ann = {}
-        ann['image_id'] = predictions['source_id'][i][j]
-        ann['category_id'] = predictions['detection_classes'][i][j, k]
-        ann['bbox'] = predictions['detection_boxes'][i][j, k]
-        ann['score'] = predictions['detection_scores'][i][j, k]
+        ann = {
+            'image_id': predictions['source_id'][i][j],
+            'category_id': predictions['detection_classes'][i][j, k],
+            'bbox': predictions['detection_boxes'][i][j, k],
+            'score': predictions['detection_scores'][i][j, k],
+        }
         if 'detection_masks' in predictions:
           ann['segmentation'] = encoded_masks[k]
         coco_predictions.append(ann)
@@ -217,13 +218,15 @@ def convert_groundtruths_to_coco_dataset(groundtruths, label_map=None):
     for j in range(batch_size):
       num_instances = groundtruths['num_detections'][i][j]
       for k in range(num_instances):
-        ann = {}
-        ann['image_id'] = int(groundtruths['source_id'][i][j])
-        if 'is_crowds' in groundtruths:
-          ann['iscrowd'] = int(groundtruths['is_crowds'][i][j, k])
-        else:
-          ann['iscrowd'] = 0
-        ann['category_id'] = int(groundtruths['classes'][i][j, k])
+        ann = {
+            'image_id':
+            int(groundtruths['source_id'][i][j]),
+            'iscrowd':
+            int(groundtruths['is_crowds'][i][j, k])
+            if 'is_crowds' in groundtruths else 0,
+            'category_id':
+            int(groundtruths['classes'][i][j, k]),
+        }
         boxes = groundtruths['boxes'][i]
         ann['bbox'] = [
             float(boxes[j, k, 1]),
@@ -257,12 +260,11 @@ def convert_groundtruths_to_coco_dataset(groundtruths, label_map=None):
     category_ids = [gt['category_id'] for gt in gt_annotations]
     gt_categories = [{'id': i} for i in set(category_ids)]
 
-  gt_dataset = {
+  return {
       'images': gt_images,
       'categories': gt_categories,
       'annotations': copy.deepcopy(gt_annotations),
   }
-  return gt_dataset
 
 
 class COCOGroundtruthGenerator(object):
@@ -301,7 +303,7 @@ class COCOGroundtruthGenerator(object):
     decoded_tensors = decoder.decode(example)
 
     image = decoded_tensors['image']
-    image_size = tf.shape(image)[0:2]
+    image_size = tf.shape(image)[:2]
     boxes = box_utils.denormalize_boxes(
         decoded_tensors['groundtruth_boxes'], image_size)
     groundtruths = {
@@ -316,9 +318,7 @@ class COCOGroundtruthGenerator(object):
         'areas': decoded_tensors['groundtruth_area'],
     }
     if self._include_mask:
-      groundtruths.update({
-          'masks': decoded_tensors['groundtruth_instance_masks_png'],
-      })
+      groundtruths['masks'] = decoded_tensors['groundtruth_instance_masks_png']
     return groundtruths
 
   def _build_pipeline(self):
@@ -341,8 +341,7 @@ class COCOGroundtruthGenerator(object):
 
       with tf.Session() as sess:
         for _ in range(self._num_examples):
-          groundtruth_result = sess.run(groundtruth)
-          yield groundtruth_result
+          yield sess.run(groundtruth)
 
 
 def scan_and_generator_annotation_file(file_pattern,

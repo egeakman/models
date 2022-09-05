@@ -59,10 +59,8 @@ def preprocess():
   if FLAGS.create_train_data:
     train_rec_file = os.path.join(
         FLAGS.output_dir,
-        "{}.{}.slen-{}.qlen-{}.train.tf_record".format(spm_basename,
-                                                       FLAGS.proc_id,
-                                                       FLAGS.max_seq_length,
-                                                       FLAGS.max_query_length))
+        f"{spm_basename}.{FLAGS.proc_id}.slen-{FLAGS.max_seq_length}.qlen-{FLAGS.max_query_length}.train.tf_record",
+    )
 
     logging.info("Read examples from %s", FLAGS.train_file)
     train_examples = squad_utils.read_squad_examples(
@@ -72,7 +70,7 @@ def preprocess():
     # Pre-shuffle the input to avoid having to make a very large shuffle
     # buffer in the `input_fn`.
     random.shuffle(train_examples)
-    write_to_logging = "Write to " + train_rec_file
+    write_to_logging = f"Write to {train_rec_file}"
     logging.info(write_to_logging)
     train_writer = squad_utils.FeatureWriter(
         filename=train_rec_file, is_training=True)

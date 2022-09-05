@@ -80,9 +80,8 @@ class CosineLearningRateWithLinearWarmup(
     cosine_learning_rate = (
         init_lr * (tf.cos(np.pi * (global_step - warmup_steps) /
                           (total_steps - warmup_steps)) + 1.0) / 2.0)
-    learning_rate = tf.where(global_step < warmup_steps, linear_warmup,
-                             cosine_learning_rate)
-    return learning_rate
+    return tf.where(global_step < warmup_steps, linear_warmup,
+                    cosine_learning_rate)
 
   def get_config(self):
     return {'_params': self._params.as_dict()}
@@ -95,4 +94,4 @@ def learning_rate_generator(total_steps, params):
   elif params.type == 'cosine':
     return CosineLearningRateWithLinearWarmup(total_steps, params)
   else:
-    raise ValueError('Unsupported learning rate type: {}.'.format(params.type))
+    raise ValueError(f'Unsupported learning rate type: {params.type}.')

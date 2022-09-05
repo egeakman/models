@@ -40,8 +40,8 @@ def get_model_params(param_set, num_gpus):
     elif param_set == 'base':
       return model_params.BASE_MULTI_GPU_PARAMS.copy()
     else:
-      raise ValueError('Not valid params: param_set={} num_gpus={}'.format(
-          param_set, num_gpus))
+      raise ValueError(
+          f'Not valid params: param_set={param_set} num_gpus={num_gpus}')
 
   return PARAMS_MAP[param_set].copy()
 

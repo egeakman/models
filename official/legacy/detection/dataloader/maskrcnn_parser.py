@@ -122,7 +122,7 @@ class Parser(object):
       self._parse_fn = self._parse_train_data
     elif mode == ModeKeys.EVAL:
       self._parse_fn = self._parse_eval_data
-    elif mode == ModeKeys.PREDICT or mode == ModeKeys.PREDICT_WITH_GT:
+    elif mode in [ModeKeys.PREDICT, ModeKeys.PREDICT_WITH_GT]:
       self._parse_fn = self._parse_predict_data
     else:
       raise ValueError('mode is not defined.')
@@ -198,12 +198,11 @@ class Parser(object):
 
     # Gets original image and its size.
     image = data['image']
-    image_shape = tf.shape(image)[0:2]
+    image_shape = tf.shape(image)[:2]
 
     # Normalizes image with mean and std pixel values.
     image = input_utils.normalize_image(image)
 
-    # Flips image randomly during training.
     if self._aug_rand_hflip:
       if self._include_mask:
         image, boxes, masks = input_utils.random_horizontal_flip(
@@ -325,7 +324,7 @@ class Parser(object):
     """
     # Gets original image and its size.
     image = data['image']
-    image_shape = tf.shape(image)[0:2]
+    image_shape = tf.shape(image)[:2]
 
     # Normalizes image with mean and std pixel values.
     image = input_utils.normalize_image(image)

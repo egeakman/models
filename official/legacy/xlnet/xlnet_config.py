@@ -33,13 +33,13 @@ def create_run_config(is_training, is_finetune, flags):
       clamp_len=flags.clamp_len)
 
   if not is_finetune:
-    kwargs.update(
-        dict(
-            mem_len=flags.mem_len,
-            reuse_len=flags.reuse_len,
-            bi_data=flags.bi_data,
-            clamp_len=flags.clamp_len,
-            same_length=flags.same_length))
+    kwargs |= dict(
+        mem_len=flags.mem_len,
+        reuse_len=flags.reuse_len,
+        bi_data=flags.bi_data,
+        clamp_len=flags.clamp_len,
+        same_length=flags.same_length,
+    )
 
   return RunConfig(**kwargs)
 
@@ -106,10 +106,7 @@ class XLNetConfig(object):
 
   def to_json(self, json_path):
     """Save XLNetConfig to a json file."""
-    json_data = {}
-    for key in self.keys:
-      json_data[key] = getattr(self, key)
-
+    json_data = {key: getattr(self, key) for key in self.keys}
     json_dir = os.path.dirname(json_path)
     if not tf.io.gfile.exists(json_dir):
       tf.io.gfile.makedirs(json_dir)

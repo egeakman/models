@@ -41,4 +41,4 @@ def pick_dataset_fn(file_type: str) -> PossibleDatasetType:
     return tf.data.TFRecordDataset
   if file_type == 'tfrecord_compressed':
     return functools.partial(tf.data.TFRecordDataset, compression_type='GZIP')
-  raise ValueError('Unrecognized file_type: {}'.format(file_type))
+  raise ValueError(f'Unrecognized file_type: {file_type}')

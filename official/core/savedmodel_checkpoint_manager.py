@@ -103,7 +103,7 @@ class SavedModelCheckpointManager(tf.train.CheckpointManager):
       A list of all existing SavedModel paths.
     """
     saved_modules_glob = make_saved_modules_directory_name(
-        self._checkpoint_prefix + '-*')
+        f'{self._checkpoint_prefix}-*')
     return tf.io.gfile.glob(saved_modules_glob)
 
   @property
@@ -113,9 +113,7 @@ class SavedModelCheckpointManager(tf.train.CheckpointManager):
     Returns:
       The latest SavedModel path. If there are no SavedModels, returns `None`.
     """
-    if self._savedmodels:
-      return self._savedmodels[-1]
-    return None
+    return self._savedmodels[-1] if self._savedmodels else None
 
   @property
   def savedmodels(self) -> List[str]:
@@ -143,8 +141,7 @@ class SavedModelCheckpointManager(tf.train.CheckpointManager):
       Savedmodel number or None if no matched pattern found in savedmodel path.
     """
     pattern = rf'\d+_{SAVED_MODULES_PATH_SUFFIX}$'
-    savedmodel_number = re.search(pattern, savedmodel_path)
-    if savedmodel_number:
+    if savedmodel_number := re.search(pattern, savedmodel_path):
       savedmodel_number = savedmodel_number.group()
       return int(savedmodel_number[:-len(SAVED_MODULES_PATH_SUFFIX) - 1])
     return None
@@ -229,15 +226,13 @@ class SavedModelCheckpointManager(tf.train.CheckpointManager):
         if savedmodel_number is not None:
           existing_savedmodels[savedmodel_number] = savedmodel_path
 
-      # Find the first savedmodel with larger step number as next savedmodel.
-      savedmodel_path = None
       existing_savedmodels = dict(sorted(existing_savedmodels.items()))
-      for savedmodel_number in existing_savedmodels:
-        if savedmodel_number > last_savedmodel_number:
-          savedmodel_path = existing_savedmodels[savedmodel_number]
-          break
-
-      if savedmodel_path:
+      if savedmodel_path := next(
+          (existing_savedmodels[savedmodel_number]
+           for savedmodel_number in existing_savedmodels
+           if savedmodel_number > last_savedmodel_number),
+          None,
+      ):
         logging.info('Found new savedmodel at %s', savedmodel_path)
         return savedmodel_path
       else:

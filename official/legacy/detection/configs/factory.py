@@ -36,6 +36,6 @@ def config_generator(model):
     default_config = shapemask_config.SHAPEMASK_CFG
     restrictions = shapemask_config.SHAPEMASK_RESTRICTIONS
   else:
-    raise ValueError('Model %s is not supported.' % model)
+    raise ValueError(f'Model {model} is not supported.')
 
   return params_dict.ParamsDict(default_config, restrictions)

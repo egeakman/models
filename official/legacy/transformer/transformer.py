@@ -146,8 +146,7 @@ class Transformer(tf.keras.Model):
       if targets is None:
         return self.predict(encoder_outputs, attention_bias, training)
       else:
-        logits = self.decode(targets, encoder_outputs, attention_bias, training)
-        return logits
+        return self.decode(targets, encoder_outputs, attention_bias, training)
 
   def encode(self, inputs, attention_bias, training):
     """Generate continuous representation for inputs.

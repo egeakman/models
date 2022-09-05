@@ -54,13 +54,11 @@ def pad_to_size(input_tensor, size):
     padding_shape.append(padding_length)
 
   # Copies shapes of the rest of input shape dimensions.
-  for i in range(1, len(input_shape)):
-    padding_shape.append(tf.shape(input=input_tensor)[i])
-
+  padding_shape.extend(
+      tf.shape(input=input_tensor)[i] for i in range(1, len(input_shape)))
   # Pads input tensor to the fixed first dimension.
   paddings = tf.cast(tf.zeros(padding_shape), input_tensor.dtype)
-  padded_tensor = tf.concat([input_tensor, paddings], axis=0)
-  return padded_tensor
+  return tf.concat([input_tensor, paddings], axis=0)
 
 
 class Parser(object):
@@ -185,7 +183,7 @@ class Parser(object):
       self._parse_fn = self._parse_train_data
     elif mode == ModeKeys.EVAL:
       self._parse_fn = self._parse_eval_data
-    elif mode == ModeKeys.PREDICT or mode == ModeKeys.PREDICT_WITH_GT:
+    elif mode in [ModeKeys.PREDICT, ModeKeys.PREDICT_WITH_GT]:
       self._parse_fn = self._parse_predict_data
     else:
       raise ValueError('mode is not defined.')
@@ -267,7 +265,7 @@ class Parser(object):
 
     # Gets original image and its size.
     image = data['image']
-    image_shape = tf.shape(image)[0:2]
+    image_shape = tf.shape(image)[:2]
 
     # If not using category, makes all categories with id = 0.
     if not self._use_category:
@@ -330,7 +328,7 @@ class Parser(object):
     rand_indices = tf.random.shuffle(
         tf.range(tf.maximum(num_masks, self._num_sampled_masks)))
     rand_indices = tf.math.mod(rand_indices, tf.maximum(num_masks, 1))
-    rand_indices = rand_indices[0:self._num_sampled_masks]
+    rand_indices = rand_indices[:self._num_sampled_masks]
     rand_indices = tf.reshape(rand_indices, [self._num_sampled_masks])
 
     sampled_boxes = tf.gather(padded_boxes, rand_indices)
@@ -343,7 +341,7 @@ class Parser(object):
     # Compute mask targets in feature crop. A feature crop fully contains a
     # sampled box.
     mask_outer_boxes = box_utils.compute_outer_boxes(
-        sampled_boxes, tf.shape(image)[0:2], scale=self._outer_box_scale)
+        sampled_boxes, tf.shape(image)[:2], scale=self._outer_box_scale)
     mask_outer_boxes = box_utils.clip_boxes(mask_outer_boxes, self._output_size)
     # Compensate the offset of mask_outer_boxes to map it back to original image
     # scale.
@@ -433,7 +431,7 @@ class Parser(object):
 
     # Gets original image and its size.
     image = data['image']
-    image_shape = tf.shape(image)[0:2]
+    image_shape = tf.shape(image)[:2]
 
     # If not using category, makes all categories with id = 0.
     if not self._use_category:
@@ -506,12 +504,12 @@ class Parser(object):
            boxes,
            tf.cast(tf.expand_dims(classes, axis=1), tf.float32))
       # Packs labels for model_fn outputs.
-      labels.update({
+      labels |= {
           'cls_targets': cls_targets,
           'box_targets': box_targets,
           'num_positives': num_positives,
           'groundtruths': groundtruths,
-      })
+      }
 
     inputs = {
         'image': image,

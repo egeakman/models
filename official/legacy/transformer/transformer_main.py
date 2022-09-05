@@ -217,7 +217,7 @@ class TransformerTask(object):
           summary_writer = tf.summary.create_noop_writer()
         train_metrics = [train_loss_metric]
         if params["enable_metrics_in_training"]:
-          train_metrics = train_metrics + model.metrics
+          train_metrics += model.metrics
       else:
         model.compile(opt)
 
@@ -418,7 +418,7 @@ class TransformerTask(object):
   def _load_weights_if_possible(self, model, init_weight_path=None):
     """Loads model weights when it is provided."""
     if init_weight_path:
-      logging.info("Load weights: {}".format(init_weight_path))
+      logging.info(f"Load weights: {init_weight_path}")
       if self.use_tpu:
         checkpoint = tf.train.Checkpoint(
             model=model, optimizer=self._create_optimizer())
@@ -426,7 +426,7 @@ class TransformerTask(object):
       else:
         model.load_weights(init_weight_path)
     else:
-      logging.info("Weights not loaded from path:{}".format(init_weight_path))
+      logging.info(f"Weights not loaded from path:{init_weight_path}")
 
   def _create_optimizer(self):
     """Creates optimizer."""
@@ -476,7 +476,7 @@ def main(_):
   elif flags_obj.mode == "eval":
     task.eval()
   else:
-    raise ValueError("Invalid mode {}".format(flags_obj.mode))
+    raise ValueError(f"Invalid mode {flags_obj.mode}")
 
 
 if __name__ == "__main__":

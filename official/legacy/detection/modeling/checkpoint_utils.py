@@ -85,8 +85,8 @@ def _build_assignment_map(keras_model,
     # pylint: enable=cell-var-from-loop
     try:
       if match_names:
-        assert len(match_names) == 1, 'more then on matches for {}: {}'.format(
-            var_name, match_names)
+        assert (len(match_names) == 1
+                ), f'more then on matches for {var_name}: {match_names}'
         checkpoint_names.remove(match_names[0])
         assignment_map[match_names[0]] = var
       else:

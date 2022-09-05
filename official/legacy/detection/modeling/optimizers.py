@@ -43,7 +43,7 @@ class OptimizerFactory(object):
       self._optimizer = functools.partial(
           tf.keras.optimizers.RMSprop, momentum=params.momentum)
     else:
-      raise ValueError('Unsupported optimizer type `{}`.'.format(params.type))
+      raise ValueError(f'Unsupported optimizer type `{params.type}`.')
 
   def __call__(self, learning_rate):
     return self._optimizer(learning_rate=learning_rate)

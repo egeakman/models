@@ -161,13 +161,14 @@ def run(flags_obj):
   resnet_controller = orbit.Controller(
       strategy=strategy,
       trainer=runnable,
-      evaluator=runnable if not flags_obj.skip_eval else None,
+      evaluator=None if flags_obj.skip_eval else runnable,
       global_step=runnable.global_step,
       steps_per_loop=steps_per_loop,
       checkpoint_manager=checkpoint_manager,
       summary_interval=summary_interval,
       summary_dir=flags_obj.model_dir,
-      eval_summary_dir=os.path.join(flags_obj.model_dir, 'eval'))
+      eval_summary_dir=os.path.join(flags_obj.model_dir, 'eval'),
+  )
 
   time_callback.on_train_begin()
   if not flags_obj.skip_eval:
@@ -179,8 +180,7 @@ def run(flags_obj):
     resnet_controller.train(steps=per_epoch_steps * train_epochs)
   time_callback.on_train_end()
 
-  stats = build_stats(runnable, time_callback)
-  return stats
+  return build_stats(runnable, time_callback)
 
 
 def main(_):

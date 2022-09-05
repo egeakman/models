@@ -131,6 +131,6 @@ def parser_generator(params, mode):
         mask_train_class=parser_params.mask_train_class,
         mode=mode)
   else:
-    raise ValueError('Parser %s is not supported.' % params.architecture.parser)
+    raise ValueError(f'Parser {params.architecture.parser} is not supported.')
 
   return parser_fn

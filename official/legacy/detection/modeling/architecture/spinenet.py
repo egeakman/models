@@ -150,7 +150,7 @@ class SpineNet(tf.keras.Model):
     elif activation == 'swish':
       self._activation = tf.nn.swish
     else:
-      raise ValueError('Activation {} not implemented.'.format(activation))
+      raise ValueError(f'Activation {activation} not implemented.')
     self._init_block_fn = 'bottleneck'
     self._num_init_blocks = 2
 
@@ -190,9 +190,9 @@ class SpineNet(tf.keras.Model):
     _, _, _, num_filters = inputs.get_shape().as_list()
 
     if block_fn_cand == 'bottleneck':
-      use_projection = not (num_filters == (filters * 4) and strides == 1)
+      use_projection = num_filters != filters * 4 or strides != 1
     else:
-      use_projection = not (num_filters == filters and strides == 1)
+      use_projection = num_filters != filters or strides != 1
 
     x = block_fn(
         filters=filters,
@@ -250,7 +250,8 @@ class SpineNet(tf.keras.Model):
           strides=1,
           block_fn_cand=self._init_block_fn,
           block_repeats=self._block_repeats,
-          name='stem_block_{}'.format(i + 1))
+          name=f'stem_block_{i + 1}',
+      )
       net.append(x)
     return net
 
@@ -271,8 +272,6 @@ class SpineNet(tf.keras.Model):
                                self._filter_size_scale)
       target_block_fn = block_spec.block_fn
 
-      # Resample then merge input0 and input1.
-      parents = []
       input0 = block_spec.input_offsets[0]
       input1 = block_spec.input_offsets[1]
 
@@ -284,7 +283,7 @@ class SpineNet(tf.keras.Model):
           target_num_filters=target_num_filters,
           target_block_fn=target_block_fn,
           alpha=self._resample_alpha)
-      parents.append(x0)
+      parents = [x0]
       num_outgoing_connections[input0] += 1
 
       x1 = self._resample_with_alpha(
@@ -311,8 +310,11 @@ class SpineNet(tf.keras.Model):
       if weighted_fusion:
         dtype = parents[0].dtype
         parent_weights = [
-            tf.nn.relu(tf.cast(tf.Variable(1.0, name='block{}_fusion{}'.format(
-                i, j)), dtype=dtype)) for j in range(len(parents))]
+            tf.nn.relu(
+                tf.cast(
+                    tf.Variable(1.0, name=f'block{i}_fusion{j}'), dtype=dtype))
+            for j in range(len(parents))
+        ]
         weights_sum = tf.add_n(parent_weights)
         parents = [
             parents[i] * parent_weights[i] / (weights_sum + 0.0001)
@@ -327,7 +329,8 @@ class SpineNet(tf.keras.Model):
           strides=1,
           block_fn_cand=target_block_fn,
           block_repeats=self._block_repeats,
-          name='scale_permuted_block_{}'.format(i + 1))
+          name=f'scale_permuted_block_{i + 1}',
+      )
 
       net.append(x)
       net_sizes.append(target_width)
@@ -337,12 +340,12 @@ class SpineNet(tf.keras.Model):
       # Save output feats.
       if block_spec.is_output:
         if block_spec.level in endpoints:
-          raise ValueError('Duplicate feats found for output level {}.'.format(
-              block_spec.level))
+          raise ValueError(f'Duplicate feats found for output level {block_spec.level}.')
         if (block_spec.level < self._min_level or
             block_spec.level > self._max_level):
-          raise ValueError('Output level is out of range [{}, {}]'.format(
-              self._min_level, self._max_level))
+          raise ValueError(
+              f'Output level is out of range [{self._min_level}, {self._max_level}]'
+          )
         endpoints[block_spec.level] = x
 
     return endpoints
@@ -463,8 +466,7 @@ class SpineNetBuilder(object):
                norm_momentum=0.99,
                norm_epsilon=0.001):
     if model_id not in SCALING_MAP:
-      raise ValueError(
-          'SpineNet {} is not a valid architecture.'.format(model_id))
+      raise ValueError(f'SpineNet {model_id} is not a valid architecture.')
     scaling_params = SCALING_MAP[model_id]
     self._input_specs = input_specs
     self._min_level = min_level

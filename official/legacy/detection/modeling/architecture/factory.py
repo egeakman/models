@@ -47,8 +47,8 @@ def backbone_generator(params):
     spinenet_params = params.spinenet
     backbone_fn = spinenet.SpineNetBuilder(model_id=spinenet_params.model_id)
   else:
-    raise ValueError('Backbone model `{}` is not supported.'
-                     .format(params.architecture.backbone))
+    raise ValueError(
+        f'Backbone model `{params.architecture.backbone}` is not supported.')
 
   return backbone_fn
 
@@ -69,8 +69,9 @@ def multilevel_features_generator(params):
   elif params.architecture.multilevel_features == 'identity':
     fpn_fn = identity.Identity()
   else:
-    raise ValueError('The multi-level feature model `{}` is not supported.'
-                     .format(params.architecture.multilevel_features))
+    raise ValueError(
+        f'The multi-level feature model `{params.architecture.multilevel_features}` is not supported.'
+    )
   return fpn_fn
 
 

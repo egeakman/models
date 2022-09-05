@@ -34,7 +34,7 @@ def _get_initializer(flags):
   elif flags.init_method == "normal":
     initializer = tf.keras.initializers.RandomNormal(stddev=flags.init_std)
   else:
-    raise ValueError("Initializer {} not supported".format(flags.init_method))
+    raise ValueError(f"Initializer {flags.init_method} not supported")
   return initializer
 
 
@@ -69,15 +69,11 @@ def _cache_mem(curr_out, prev_mem, mem_len, reuse_len=None):
 
   if mem_len is None or mem_len == 0:
     return None
-  else:
-    if reuse_len is not None and reuse_len > 0:
-      curr_out = curr_out[:reuse_len]
+  if reuse_len is not None and reuse_len > 0:
+    curr_out = curr_out[:reuse_len]
 
-    if prev_mem is None:
-      new_mem = curr_out[-mem_len:]
-    else:
-      new_mem = tf.concat([prev_mem, curr_out], 0)[-mem_len:]
-
+  new_mem = (curr_out[-mem_len:] if prev_mem is None else tf.concat(
+      [prev_mem, curr_out], 0)[-mem_len:])
   return tf.keras.backend.stop_gradient(new_mem)
 
 
@@ -179,10 +175,7 @@ class RelativeAttention(tf.keras.layers.Layer):
     attn_prob = tf.nn.softmax(attn_score, 1)
     attn_prob = self.attention_probs_dropout(attn_prob)
 
-    # attention output
-    attn_vec = tf.einsum("ijbn,jbnd->ibnd", attn_prob, v_head_h)
-
-    return attn_vec
+    return tf.einsum("ijbn,jbnd->ibnd", attn_prob, v_head_h)
 
 
 class PositionwiseFF(tf.keras.layers.Layer):
@@ -204,8 +197,7 @@ class PositionwiseFF(tf.keras.layers.Layer):
     elif self.activation_type == "gelu":
       activation = gelu
     else:
-      raise (ValueError("Unsupported activation type {}".format(
-          self.activation_type)))
+      raise ValueError(f"Unsupported activation type {self.activation_type}")
     self.inner_projection_layer = (
         tf.keras.layers.Dense(
             units=self.d_inner,

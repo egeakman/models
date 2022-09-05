@@ -53,7 +53,7 @@ class Resnet(object):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._norm_activation = norm_activation
     self._data_format = data_format
 
@@ -92,8 +92,9 @@ class Resnet(object):
       valid_resnet_depths = ', '.join(
           [str(depth) for depth in sorted(model_params.keys())])
       raise ValueError(
-          'The resnet_depth should be in [%s]. Not a valid resnet_depth:' %
-          (valid_resnet_depths), self._resnet_depth)
+          f'The resnet_depth should be in [{valid_resnet_depths}]. Not a valid resnet_depth:',
+          self._resnet_depth,
+      )
     params = model_params[resnet_depth]
     self._resnet_fn = self.resnet_v1_generator(params['block'],
                                                params['layers'])
@@ -111,7 +112,7 @@ class Resnet(object):
       The values are corresponding feature hierarchy in ResNet with shape
       [batch_size, height_l, width_l, num_filters].
     """
-    with tf.name_scope('resnet%s' % self._resnet_depth):
+    with tf.name_scope(f'resnet{self._resnet_depth}'):
       return self._resnet_fn(inputs, is_training)
 
   def fixed_padding(self, inputs, kernel_size):
@@ -130,16 +131,13 @@ class Resnet(object):
     pad_total = kernel_size - 1
     pad_beg = pad_total // 2
     pad_end = pad_total - pad_beg
-    if self._data_format == 'channels_first':
-      padded_inputs = tf.pad(
-          tensor=inputs,
-          paddings=[[0, 0], [0, 0], [pad_beg, pad_end], [pad_beg, pad_end]])
-    else:
-      padded_inputs = tf.pad(
-          tensor=inputs,
-          paddings=[[0, 0], [pad_beg, pad_end], [pad_beg, pad_end], [0, 0]])
-
-    return padded_inputs
+    return (tf.pad(
+        tensor=inputs,
+        paddings=[[0, 0], [0, 0], [pad_beg, pad_end], [pad_beg, pad_end]],
+    ) if self._data_format == 'channels_first' else tf.pad(
+        tensor=inputs,
+        paddings=[[0, 0], [pad_beg, pad_end], [pad_beg, pad_end], [0, 0]],
+    ))
 
   def conv2d_fixed_padding(self, inputs, filters, kernel_size, strides):
     """Strided 2-D convolution with explicit padding.

@@ -110,16 +110,17 @@ class RpnScoreLoss(object):
     with tf.name_scope('rpn_loss'):
       levels = sorted(score_outputs.keys())
 
-      score_losses = []
-      for level in levels:
-        score_losses.append(
-            self._rpn_score_loss(
-                score_outputs[level],
-                labels[level],
-                normalizer=tf.cast(
-                    tf.shape(score_outputs[level])[0] *
-                    self._rpn_batch_size_per_im, dtype=tf.float32)))
-
+      score_losses = [
+          self._rpn_score_loss(
+              score_outputs[level],
+              labels[level],
+              normalizer=tf.cast(
+                  tf.shape(score_outputs[level])[0] *
+                  self._rpn_batch_size_per_im,
+                  dtype=tf.float32,
+              ),
+          ) for level in levels
+      ]
       # Sums per level losses to total loss.
       return tf.math.add_n(score_losses)
 
@@ -174,10 +175,10 @@ class RpnBoxLoss(object):
     with tf.name_scope('rpn_loss'):
       levels = sorted(box_outputs.keys())
 
-      box_losses = []
-      for level in levels:
-        box_losses.append(self._rpn_box_loss(box_outputs[level], labels[level]))
-
+      box_losses = [
+          self._rpn_box_loss(box_outputs[level], labels[level])
+          for level in levels
+      ]
       # Sum per level losses to total loss.
       return tf.add_n(box_losses)
 
@@ -221,21 +222,17 @@ class OlnRpnCenterLoss(object):
     with tf.name_scope('rpn_loss'):
       # Normalizer.
       levels = sorted(center_outputs.keys())
-      num_valid = 0
-      # 0<pos<1, neg=0, ign=-1
-      for level in levels:
-        num_valid += tf.reduce_sum(tf.cast(
-            tf.greater(labels[level], -1.0), tf.float32))  # in and out of box
+      num_valid = sum(
+          tf.reduce_sum(tf.cast(tf.greater(labels[level], -1.0), tf.float32))
+          for level in levels)
       num_valid += 1e-12
 
       # Centerness loss over multi levels.
-      center_losses = []
-      for level in levels:
-        center_losses.append(
-            self._rpn_center_l1_loss(
-                center_outputs[level], labels[level],
-                normalizer=num_valid))
-
+      center_losses = [
+          self._rpn_center_l1_loss(
+              center_outputs[level], labels[level], normalizer=num_valid)
+          for level in levels
+      ]
       # Sum per level losses to total loss.
       return tf.add_n(center_losses)
 
@@ -291,13 +288,14 @@ class OlnRpnIoULoss(object):
         normalizer += tf.reduce_sum(mask_)
       normalizer += 1e-8
       # iou_loss over multi levels.
-      iou_losses = []
-      for level in levels:
-        iou_losses.append(
-            self._rpn_iou_loss(
-                box_outputs[level], labels[level],
-                center_weight=center_targets[level][..., 0],
-                normalizer=normalizer))
+      iou_losses = [
+          self._rpn_iou_loss(
+              box_outputs[level],
+              labels[level],
+              center_weight=center_targets[level][..., 0],
+              normalizer=normalizer,
+          ) for level in levels
+      ]
       # Sum per level losses to total loss.
       return tf.add_n(iou_losses)
 
@@ -580,10 +578,10 @@ class RetinanetClassLoss(object):
     # num_positives_sum, which would lead to inf loss during training
     num_positives_sum = tf.reduce_sum(input_tensor=num_positives) + 1.0
 
-    cls_losses = []
-    for level in cls_outputs.keys():
-      cls_losses.append(self.class_loss(
-          cls_outputs[level], labels[level], num_positives_sum))
+    cls_losses = [
+        self.class_loss(cls_outputs[level], labels[level], num_positives_sum)
+        for level in cls_outputs.keys()
+    ]
     # Sums per level losses to total loss.
     return tf.add_n(cls_losses)
 

@@ -47,6 +47,6 @@ def evaluator_generator(params):
         annotation_file=params.val_json_file, include_mask=True)
 
   else:
-    raise ValueError('Evaluator %s is not supported.' % params.type)
+    raise ValueError(f'Evaluator {params.type} is not supported.')
 
   return coco_evaluator.MetricWrapper(evaluator)

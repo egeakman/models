@@ -109,24 +109,20 @@ class OlnMaskModel(MaskrcnnModel):
     if self._include_centerness:
       rpn_score_outputs, rpn_box_outputs, rpn_center_outputs = (
           self._rpn_head_fn(fpn_features, is_training))
-      model_outputs.update({
-          'rpn_center_outputs':
-              tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                    rpn_center_outputs),
-      })
+      model_outputs['rpn_center_outputs'] = tf.nest.map_structure(
+          lambda x: tf.cast(x, tf.float32), rpn_center_outputs)
       object_scores = rpn_center_outputs
     else:
       rpn_score_outputs, rpn_box_outputs = self._rpn_head_fn(
           fpn_features, is_training)
       object_scores = None
-    model_outputs.update({
+    model_outputs |= {
         'rpn_score_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  rpn_score_outputs),
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
+                              rpn_score_outputs),
         'rpn_box_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  rpn_box_outputs),
-    })
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32), rpn_box_outputs),
+    }
     input_anchor = anchor.Anchor(self._params.architecture.min_level,
                                  self._params.architecture.max_level,
                                  self._params.anchor.num_scales,
@@ -155,12 +151,12 @@ class OlnMaskModel(MaskrcnnModel):
           inputs['image_info'][:, 1:2, :],
           is_single_fg_score=True,  # if no_background, no softmax is applied.
           keep_nms=True)
-      model_outputs.update({
+      model_outputs |= {
           'num_detections': valid_detections,
           'detection_boxes': boxes,
           'detection_classes': classes,
           'detection_scores': scores,
-      })
+      }
       return model_outputs
 
     # ---- OLN-Proposal finishes here. ----
@@ -182,16 +178,15 @@ class OlnMaskModel(MaskrcnnModel):
           tf.tile(
               tf.expand_dims(tf.equal(matched_gt_classes, 0), axis=-1),
               [1, 1, 4]), tf.zeros_like(box_targets), box_targets)
-      model_outputs.update({
+      model_outputs |= {
           'class_targets': matched_gt_classes,
           'box_targets': box_targets,
-      })
+      }
       # Create Box-IoU targets. {
       box_ious = box_utils.bbox_overlap(
           rpn_rois, inputs['gt_boxes'])
       matched_box_ious = tf.reduce_max(box_ious, 2)
-      model_outputs.update({
-          'box_iou_targets': matched_box_ious,})  # }
+      model_outputs['box_iou_targets'] = matched_box_ious
 
     roi_features = spatial_transform_ops.multilevel_crop_and_resize(
         fpn_features, rpn_rois, output_size=7)
@@ -202,18 +197,14 @@ class OlnMaskModel(MaskrcnnModel):
     else:
       class_outputs, box_outputs, score_outputs = self._frcnn_head_fn(
           roi_features, is_training)
-      model_outputs.update({
-          'box_score_outputs':
-              tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                    score_outputs),})
-    model_outputs.update({
+      model_outputs['box_score_outputs'] = tf.nest.map_structure(
+          lambda x: tf.cast(x, tf.float32), score_outputs)
+    model_outputs |= {
         'class_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  class_outputs),
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32), class_outputs),
         'box_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  box_outputs),
-    })
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32), box_outputs),
+    }
 
     # Add this output to train to make the checkpoint loadable in predict mode.
     # If we skip it in train mode, the heads will be out-of-order and checkpoint
@@ -231,25 +222,26 @@ class OlnMaskModel(MaskrcnnModel):
       box_scores = tf.pow(
           rpn_roi_scores * tf.sigmoid(score_outputs), 1/2.)
 
-    if not self._include_frcnn_class:
-      boxes, scores, classes, valid_detections = self._generate_detections_fn(
-          box_outputs,
-          box_scores,
-          rpn_rois,
-          inputs['image_info'][:, 1:2, :],
-          is_single_fg_score=True,
-          keep_nms=True,)
-    else:
-      boxes, scores, classes, valid_detections = self._generate_detections_fn(
-          box_outputs, class_outputs, rpn_rois,
-          inputs['image_info'][:, 1:2, :],
-          keep_nms=True,)
-    model_outputs.update({
+    boxes, scores, classes, valid_detections = (self._generate_detections_fn(
+        box_outputs,
+        class_outputs,
+        rpn_rois,
+        inputs['image_info'][:, 1:2, :],
+        keep_nms=True,
+    ) if self._include_frcnn_class else self._generate_detections_fn(
+        box_outputs,
+        box_scores,
+        rpn_rois,
+        inputs['image_info'][:, 1:2, :],
+        is_single_fg_score=True,
+        keep_nms=True,
+    ))
+    model_outputs |= {
         'num_detections': valid_detections,
         'detection_boxes': boxes,
         'detection_classes': classes,
         'detection_scores': scores,
-    })
+    }
 
     # ---- OLN-Box finishes here. ----
 
@@ -264,10 +256,10 @@ class OlnMaskModel(MaskrcnnModel):
 
       classes = tf.cast(classes, dtype=tf.int32)
 
-      model_outputs.update({
+      model_outputs |= {
           'mask_targets': mask_targets,
           'sampled_class_targets': classes,
-      })
+      }
     else:
       rpn_rois = boxes
       classes = tf.cast(classes, dtype=tf.int32)
@@ -278,13 +270,10 @@ class OlnMaskModel(MaskrcnnModel):
     mask_outputs = self._mrcnn_head_fn(mask_roi_features, classes, is_training)
 
     if is_training:
-      model_outputs.update({
-          'mask_outputs':
-              tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                    mask_outputs),
-      })
+      model_outputs['mask_outputs'] = tf.nest.map_structure(
+          lambda x: tf.cast(x, tf.float32), mask_outputs)
     else:
-      model_outputs.update({'detection_masks': tf.nn.sigmoid(mask_outputs)})
+      model_outputs['detection_masks'] = tf.nn.sigmoid(mask_outputs)
 
     return model_outputs
 

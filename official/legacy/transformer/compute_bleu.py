@@ -40,7 +40,7 @@ class UnicodeRegex(object):
   def __init__(self):
     punctuation = self.property_chars("P")
     self.nondigit_punct_re = re.compile(r"([^\d])([" + punctuation + r"])")
-    self.punct_nondigit_re = re.compile(r"([" + punctuation + r"])([^\d])")
+    self.punct_nondigit_re = re.compile(f"([{punctuation}" + r"])([^\d])")
     self.symbol_re = re.compile("([" + self.property_chars("S") + "])")
 
   def property_chars(self, prefix):

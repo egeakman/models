@@ -69,7 +69,7 @@ class RpnHead(tf.keras.layers.Layer):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._use_batch_norm = use_batch_norm
 
     if use_separable_conv:
@@ -178,7 +178,7 @@ class OlnRpnHead(tf.keras.layers.Layer):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._use_batch_norm = use_batch_norm
 
     if use_separable_conv:
@@ -320,7 +320,7 @@ class FastrcnnHead(tf.keras.layers.Layer):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._use_batch_norm = use_batch_norm
     self._norm_activation = norm_activation
 
@@ -334,9 +334,9 @@ class FastrcnnHead(tf.keras.layers.Layer):
               strides=(1, 1),
               padding='same',
               dilation_rate=(1, 1),
-              activation=(None
-                          if self._use_batch_norm else self._activation_op),
-              name='conv_{}'.format(i)))
+              activation=(None if self._use_batch_norm else self._activation_op),
+              name=f'conv_{i}',
+          ))
       if self._use_batch_norm:
         self._conv_bn_ops.append(self._norm_activation())
 
@@ -346,9 +346,9 @@ class FastrcnnHead(tf.keras.layers.Layer):
       self._fc_ops.append(
           tf.keras.layers.Dense(
               units=self._fc_dims,
-              activation=(None
-                          if self._use_batch_norm else self._activation_op),
-              name='fc{}'.format(i)))
+              activation=(None if self._use_batch_norm else self._activation_op),
+              name=f'fc{i}',
+          ))
       if self._use_batch_norm:
         self._fc_bn_ops.append(self._norm_activation(fused=False))
 
@@ -459,7 +459,7 @@ class OlnBoxScoreHead(tf.keras.layers.Layer):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._use_batch_norm = use_batch_norm
     self._norm_activation = norm_activation
 
@@ -473,9 +473,9 @@ class OlnBoxScoreHead(tf.keras.layers.Layer):
               strides=(1, 1),
               padding='same',
               dilation_rate=(1, 1),
-              activation=(None
-                          if self._use_batch_norm else self._activation_op),
-              name='conv_{}'.format(i)))
+              activation=(None if self._use_batch_norm else self._activation_op),
+              name=f'conv_{i}',
+          ))
       if self._use_batch_norm:
         self._conv_bn_ops.append(self._norm_activation())
 
@@ -485,9 +485,9 @@ class OlnBoxScoreHead(tf.keras.layers.Layer):
       self._fc_ops.append(
           tf.keras.layers.Dense(
               units=self._fc_dims,
-              activation=(None
-                          if self._use_batch_norm else self._activation_op),
-              name='fc{}'.format(i)))
+              activation=(None if self._use_batch_norm else self._activation_op),
+              name=f'fc{i}',
+          ))
       if self._use_batch_norm:
         self._fc_bn_ops.append(self._norm_activation(fused=False))
 
@@ -598,21 +598,20 @@ class MaskrcnnHead(tf.keras.layers.Layer):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._use_batch_norm = use_batch_norm
     self._norm_activation = norm_activation
     self._conv2d_ops = []
-    for i in range(self._num_convs):
-      self._conv2d_ops.append(
-          self._conv2d_op(
-              self._num_filters,
-              kernel_size=(3, 3),
-              strides=(1, 1),
-              padding='same',
-              dilation_rate=(1, 1),
-              activation=(None
-                          if self._use_batch_norm else self._activation_op),
-              name='mask-conv-l%d' % i))
+    self._conv2d_ops.extend(
+        self._conv2d_op(
+            self._num_filters,
+            kernel_size=(3, 3),
+            strides=(1, 1),
+            padding='same',
+            dilation_rate=(1, 1),
+            activation=(None if self._use_batch_norm else self._activation_op),
+            name='mask-conv-l%d' % i,
+        ) for i in range(self._num_convs))
     self._mask_conv_transpose = tf.keras.layers.Conv2DTranspose(
         self._num_filters,
         kernel_size=(2, 2),
@@ -766,7 +765,8 @@ class RetinanetHead(object):
                 bias_initializer=tf.zeros_initializer(),
                 activation=None,
                 padding='same',
-                name='class-' + str(i)))
+                name=f'class-{str(i)}',
+            ))
       else:
         self._class_conv.append(
             tf.keras.layers.Conv2D(
@@ -777,7 +777,8 @@ class RetinanetHead(object):
                     stddev=0.01),
                 activation=None,
                 padding='same',
-                name='class-' + str(i)))
+                name=f'class-{str(i)}',
+            ))
       for level in range(self._min_level, self._max_level + 1):
         name = self._class_net_batch_norm_name(i, level)
         self._class_norm_activation[name] = norm_activation(name=name)
@@ -810,7 +811,8 @@ class RetinanetHead(object):
                 activation=None,
                 bias_initializer=tf.zeros_initializer(),
                 padding='same',
-                name='box-' + str(i)))
+                name=f'box-{str(i)}',
+            ))
       else:
         self._box_conv.append(
             tf.keras.layers.Conv2D(
@@ -821,7 +823,8 @@ class RetinanetHead(object):
                 kernel_initializer=tf.keras.initializers.RandomNormal(
                     stddev=0.01),
                 padding='same',
-                name='box-' + str(i)))
+                name=f'box-{str(i)}',
+            ))
       for level in range(self._min_level, self._max_level + 1):
         name = self._box_net_batch_norm_name(i, level)
         self._box_norm_activation[name] = norm_activation(name=name)
@@ -1005,8 +1008,7 @@ class ShapemaskPriorHead(object):
     else:
       logits = logits[:, :, 0, :]
 
-    distribution = tf.nn.softmax(logits, name='shape_prior_weights')
-    return distribution
+    return tf.nn.softmax(logits, name='shape_prior_weights')
 
 
 class ShapemaskCoarsemaskHead(object):

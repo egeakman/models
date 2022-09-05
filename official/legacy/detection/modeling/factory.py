@@ -32,6 +32,6 @@ def model_generator(params):
   elif params.type == 'shapemask':
     model_fn = shapemask_model.ShapeMaskModel(params)
   else:
-    raise ValueError('Model %s is not supported.'% params.type)
+    raise ValueError(f'Model {params.type} is not supported.')
 
   return model_fn

@@ -168,7 +168,7 @@ def train(
           m = re.search(r"model/transformer/layer_(\d+?)/", tvars[i].name)
           if not m:
             continue
-          n_layer = max(n_layer, int(m.group(1)) + 1)
+          n_layer = max(n_layer, int(m[1]) + 1)
 
         for i in range(len(clipped)):
           for l in range(n_layer):

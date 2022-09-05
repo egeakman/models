@@ -370,8 +370,8 @@ def multilevel_crop_and_resize(features, boxes, output_size=7):
     ]
     # level_dim_offsets is accumulated sum of level_dim_size.
     level_dim_offsets = [0]
-    for i in range(len(feature_widths) - 1):
-      level_dim_offsets.append(level_dim_offsets[i] + level_dim_sizes[i])
+    level_dim_offsets.extend(level_dim_offsets[i] + level_dim_sizes[i]
+                             for i in range(len(feature_widths) - 1))
     batch_dim_size = level_dim_offsets[-1] + level_dim_sizes[-1]
     level_dim_offsets = tf.constant(level_dim_offsets, tf.int32)
     height_dim_sizes = tf.constant(feature_widths, tf.int32)
@@ -519,13 +519,15 @@ def single_level_feature_crop(features, level_boxes, detection_prior_levels,
           [1, 1, mask_crop_size, 1]), [-1])
 
   features_r2 = tf.reshape(features, [-1, num_downsample_channels])
-  crop_features = tf.reshape(
-      tf.gather(features_r2, indices), [
-          batch_size * num_of_instances, mask_crop_size, mask_crop_size,
-          num_downsample_channels
-      ])
-
-  return crop_features
+  return tf.reshape(
+      tf.gather(features_r2, indices),
+      [
+          batch_size * num_of_instances,
+          mask_crop_size,
+          mask_crop_size,
+          num_downsample_channels,
+      ],
+  )
 
 
 def crop_mask_in_target_box(masks,

@@ -33,8 +33,8 @@ class Attention(tf.keras.layers.Layer):
     """
     if hidden_size % num_heads:
       raise ValueError(
-          "Hidden size ({}) must be divisible by the number of heads ({})."
-          .format(hidden_size, num_heads))
+          f"Hidden size ({hidden_size}) must be divisible by the number of heads ({num_heads})."
+      )
 
     super(Attention, self).__init__()
     self.hidden_size = hidden_size

@@ -128,8 +128,7 @@ def create_classification_dataset(file_path, seq_length, batch_size,
 
   input_fn = file_based_input_fn_builder(file_path, name_to_features,
                                          batch_size, is_training)
-  dataset = input_fn()
-  return dataset
+  return input_fn()
 
 
 def create_squad_dataset(file_path, seq_length, batch_size, is_training):
@@ -150,8 +149,7 @@ def create_squad_dataset(file_path, seq_length, batch_size, is_training):
 
   input_fn = file_based_input_fn_builder(file_path, name_to_features,
                                          batch_size, is_training)
-  dataset = input_fn()
-  return dataset
+  return input_fn()
 
 
 def get_input_iterator(input_fn, strategy):
@@ -161,11 +159,9 @@ def get_input_iterator(input_fn, strategy):
   # workers. Since Dataset instance cannot be cloned in eager mode, we instead
   # pass callable that returns a dataset.
   input_data = input_fn()
-  if callable(input_data):
-    iterator = iter(strategy.distribute_datasets_from_function(input_data))
-  else:
-    iterator = iter(strategy.experimental_distribute_dataset(input_data))
-  return iterator
+  return (iter(strategy.distribute_datasets_from_function(input_data))
+          if callable(input_data) else iter(
+              strategy.experimental_distribute_dataset(input_data)))
 
 
 def get_classification_input_data(batch_size, seq_len, strategy, is_training,
@@ -559,21 +555,14 @@ def format_filename(prefix,
                     uncased=False):
   """Generates input file name pattern."""
   if reuse_len is not None and reuse_len > 0:
-    reuse_str = "reuse-{}.".format(reuse_len)
-    bsz_str = "hostbsz-{}.".format(bsz_per_host)
+    reuse_str = f"reuse-{reuse_len}."
+    bsz_str = f"hostbsz-{bsz_per_host}."
   else:
     reuse_str = ""
     bsz_str = ""
 
-  if not uncased:
-    case_str = ""
-  else:
-    case_str = "uncased."
-
-  file_name = "{}.seq-{}.{}{}{}{}".format(prefix, seq_len, reuse_str, bsz_str,
-                                          case_str, suffix)
-
-  return file_name
+  case_str = "uncased." if uncased else ""
+  return f"{prefix}.seq-{seq_len}.{reuse_str}{bsz_str}{case_str}{suffix}"
 
 
 def get_pretrain_input_data(batch_size,

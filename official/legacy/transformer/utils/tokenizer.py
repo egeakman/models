@@ -50,11 +50,12 @@ _UNDEFINED_UNICODE = u"\u3013"
 
 
 def alphanumeric_char_set():
-  return set(
+  return {
       six.unichr(i)
       for i in xrange(sys.maxunicode)
-      if (unicodedata.category(six.unichr(i)).startswith("L") or
-          unicodedata.category(six.unichr(i)).startswith("N")))
+      if (unicodedata.category(six.unichr(i)).startswith("L")
+          or unicodedata.category(six.unichr(i)).startswith("N"))
+  }
 
 
 # Set contains all letter and number characters.
@@ -153,7 +154,7 @@ class Subtokenizer(object):
       ret.extend(self._token_to_subtoken_ids(token))
     if add_eos:
       assert EOS in self.subtoken_list, \
-          "Can't append 'EOS' because it is not in list of known subtokens."
+            "Can't append 'EOS' because it is not in list of known subtokens."
       ret.append(EOS_ID)
     return ret
 
@@ -196,13 +197,7 @@ class Subtokenizer(object):
     ])
     escaped_tokens = escaped_tokens.split("_")
 
-    # All tokens in the vocabulary list have been escaped (see _escape_token())
-    # so each token must be unescaped when decoding.
-    ret = []
-    for token in escaped_tokens:
-      if token:
-        ret.append(_unescape_token(token))
-    return ret
+    return [_unescape_token(token) for token in escaped_tokens if token]
 
 
 def _save_vocab_file(vocab_file, subtoken_list):

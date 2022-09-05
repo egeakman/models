@@ -28,20 +28,18 @@ from official.legacy.detection.utils import box_utils
 
 def generate_detections_factory(params):
   """Factory to select function to generate detection."""
-  if params.use_batched_nms:
-    func = functools.partial(
-        _generate_detections_batched,
-        max_total_size=params.max_total_size,
-        nms_iou_threshold=params.nms_iou_threshold,
-        score_threshold=params.score_threshold)
-  else:
-    func = functools.partial(
-        _generate_detections,
-        max_total_size=params.max_total_size,
-        nms_iou_threshold=params.nms_iou_threshold,
-        score_threshold=params.score_threshold,
-        pre_nms_num_boxes=params.pre_nms_num_boxes)
-  return func
+  return (functools.partial(
+      _generate_detections_batched,
+      max_total_size=params.max_total_size,
+      nms_iou_threshold=params.nms_iou_threshold,
+      score_threshold=params.score_threshold,
+  ) if params.use_batched_nms else functools.partial(
+      _generate_detections,
+      max_total_size=params.max_total_size,
+      nms_iou_threshold=params.nms_iou_threshold,
+      score_threshold=params.score_threshold,
+      pre_nms_num_boxes=params.pre_nms_num_boxes,
+  ))
 
 
 def _select_top_k_scores(scores_in, pre_nms_num_detections):
@@ -210,7 +208,8 @@ def _generate_detections_per_image(boxes,
         iou_threshold=nms_iou_threshold,
         score_threshold=score_threshold,
         pad_to_max_output_size=True,
-        name='nms_detections_' + str(i))
+        name=f'nms_detections_{str(i)}',
+    )
     nmsed_boxes_i = tf.gather(boxes_i, nmsed_indices_i)
     nmsed_scores_i = tf.gather(scores_i, nmsed_indices_i)
     # Sets scores of invalid boxes to -1.

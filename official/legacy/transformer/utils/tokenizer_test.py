@@ -154,9 +154,9 @@ class StringHelperTest(tf.test.TestCase):
 
     self.assertEqual(len(subtoken_buckets[0]), 0)
     self.assertEqual(set("b"), subtoken_buckets[1])
-    self.assertEqual(set(["ab", "ac"]), subtoken_buckets[2])
+    self.assertEqual({"ab", "ac"}, subtoken_buckets[2])
     self.assertEqual(len(subtoken_buckets[3]), 0)
-    self.assertEqual(set(["abbc"]), subtoken_buckets[4])
+    self.assertEqual({"abbc"}, subtoken_buckets[4])
 
   def test_gen_new_subtoken_list(self):
     subtoken_counts = collections.defaultdict(int, {

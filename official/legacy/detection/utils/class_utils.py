@@ -41,4 +41,4 @@ def coco_split_class_ids(split_name):
     ]
 
   else:
-    raise ValueError('Invalid split name {}!!!'.format(split_name))
+    raise ValueError(f'Invalid split name {split_name}!!!')

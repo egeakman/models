@@ -70,7 +70,7 @@ class Fpn(object):
     elif activation == 'swish':
       self._activation_op = tf.nn.swish
     else:
-      raise ValueError('Unsupported activation `{}`.'.format(activation))
+      raise ValueError(f'Unsupported activation `{activation}`.')
     self._use_batch_norm = use_batch_norm
     self._norm_activation = norm_activation
 
@@ -122,11 +122,10 @@ class Fpn(object):
     backbone_max_level = min(max(input_levels), self._max_level)
     with tf.name_scope('fpn'):
       # Adds lateral connections.
-      feats_lateral = {}
-      for level in range(self._min_level, backbone_max_level + 1):
-        feats_lateral[level] = self._lateral_conv2d_op[level](
-            multilevel_features[level])
-
+      feats_lateral = {
+          level: self._lateral_conv2d_op[level](multilevel_features[level])
+          for level in range(self._min_level, backbone_max_level + 1)
+      }
       # Adds top-down path.
       feats = {backbone_max_level: feats_lateral[backbone_max_level]}
       for level in range(backbone_max_level - 1, self._min_level - 1, -1):

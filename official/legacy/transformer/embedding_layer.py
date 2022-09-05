@@ -69,7 +69,7 @@ class EmbeddingSharedWeights(tf.keras.layers.Layer):
     elif mode == "linear":
       return self._linear(inputs)
     else:
-      raise ValueError("mode {} is not valid.".format(mode))
+      raise ValueError(f"mode {mode} is not valid.")
 
   def _embedding(self, inputs):
     """Applies embedding based on inputs tensor."""

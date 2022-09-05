@@ -163,7 +163,7 @@ def download_from_url(path, url):
   if found_file is None:
     filename = os.path.join(path, filename)
     logging.info("Downloading from %s to %s.", url, filename)
-    inprogress_filepath = six.ensure_str(filename) + ".incomplete"
+    inprogress_filepath = f"{six.ensure_str(filename)}.incomplete"
     inprogress_filepath, _ = urllib.request.urlretrieve(
         url, inprogress_filepath, reporthook=download_report_hook)
     # Print newline to clear the carriage return from the download progress.
@@ -212,8 +212,7 @@ def download_and_extract(path, url, input_filename, target_filename):
   if input_file and target_file:
     return input_file, target_file
 
-  raise OSError("Download/extraction failed for url %s to path %s" %
-                (url, path))
+  raise OSError(f"Download/extraction failed for url {url} to path {path}")
 
 
 def txt_line_iterator(path):
@@ -238,11 +237,11 @@ def compile_files(raw_dir, raw_files, tag):
     Full path of compiled input and target files.
   """
   logging.info("Compiling files with tag %s.", tag)
-  filename = "%s-%s" % (_PREFIX, tag)
+  filename = f"{_PREFIX}-{tag}"
   input_compiled_file = os.path.join(raw_dir,
-                                     six.ensure_str(filename) + ".lang1")
+                                     f"{six.ensure_str(filename)}.lang1")
   target_compiled_file = os.path.join(raw_dir,
-                                      six.ensure_str(filename) + ".lang2")
+                                      f"{six.ensure_str(filename)}.lang2")
 
   with tf.io.gfile.GFile(input_compiled_file, mode="w") as input_writer:
     with tf.io.gfile.GFile(target_compiled_file, mode="w") as target_writer:
@@ -295,7 +294,7 @@ def encode_and_save_files(subtokenizer, data_dir, raw_files, tag, total_shards):
   target_file = raw_files[1]
 
   # Write examples to each shard in round robin order.
-  tmp_filepaths = [six.ensure_str(fname) + ".incomplete" for fname in filepaths]
+  tmp_filepaths = [f"{six.ensure_str(fname)}.incomplete" for fname in filepaths]
   writers = [tf.python_io.TFRecordWriter(fname) for fname in tmp_filepaths]
   counter, shard = 0, 0
   for counter, (input_line, target_line) in enumerate(
@@ -329,7 +328,7 @@ def shuffle_records(fname):
   logging.info("Shuffling records in file %s", fname)
 
   # Rename file prior to shuffling
-  tmp_fname = six.ensure_str(fname) + ".unshuffled"
+  tmp_fname = f"{six.ensure_str(fname)}.unshuffled"
   tf.gfile.Rename(fname, tmp_fname)
 
   reader = tf.io.tf_record_iterator(tmp_fname)
@@ -353,18 +352,16 @@ def shuffle_records(fname):
 
 def dict_to_example(dictionary):
   """Converts a dictionary of string->int to a tf.Example."""
-  features = {}
-  for k, v in six.iteritems(dictionary):
-    features[k] = tf.train.Feature(int64_list=tf.train.Int64List(value=v))
+  features = {
+      k: tf.train.Feature(int64_list=tf.train.Int64List(value=v))
+      for k, v in six.iteritems(dictionary)
+  }
   return tf.train.Example(features=tf.train.Features(feature=features))
 
 
 def all_exist(filepaths):
   """Returns true if all files in the list exist."""
-  for fname in filepaths:
-    if not tf.gfile.Exists(fname):
-      return False
-  return True
+  return all(tf.gfile.Exists(fname) for fname in filepaths)
 
 
 def make_dir(path):

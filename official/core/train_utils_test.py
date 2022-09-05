@@ -29,7 +29,7 @@ from official.modeling import hyperparams
 @exp_factory.register_config_factory('foo')
 def foo():
   """Multitask experiment for test."""
-  experiment_config = hyperparams.Config(
+  return hyperparams.Config(
       default_params={
           'runtime': {
               'tpu': 'fake',
@@ -44,7 +44,6 @@ def foo():
               'validation_steps': -1,
           },
       })
-  return experiment_config
 
 
 class TrainUtilsTest(tf.test.TestCase):

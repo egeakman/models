@@ -98,7 +98,7 @@ def get_raw_scores(dataset, preds):
           # For unanswerable questions, only correct answer is empty string
           gold_answers = [""]
         if qid not in preds:
-          print("Missing prediction for %s" % qid)
+          print(f"Missing prediction for {qid}")
           continue
         a_pred = preds[qid]
         # Take max over all gold answers
@@ -132,9 +132,7 @@ def compute_exact(a_gold, a_pred):
 
 
 def get_tokens(s):
-  if not s:
-    return []
-  return normalize_answer(s).split()
+  return normalize_answer(s).split() if s else []
 
 
 def compute_f1(a_gold, a_pred):
@@ -151,13 +149,12 @@ def compute_f1(a_gold, a_pred):
     return 0
   precision = 1.0 * num_same / len(pred_toks)
   recall = 1.0 * num_same / len(gold_toks)
-  f1 = (2 * precision * recall) / (precision + recall)
-  return f1
+  return (2 * precision * recall) / (precision + recall)
 
 
 def find_best_thresh(preds, scores, na_probs, qid_to_has_ans):
   """Finds best threshold."""
-  num_no_ans = sum(1 for k in qid_to_has_ans if not qid_to_has_ans[k])
+  num_no_ans = sum(not qid_to_has_ans[k] for k in qid_to_has_ans)
   cur_score = num_no_ans
   best_score = cur_score
   best_thresh = 0.0
@@ -168,10 +165,7 @@ def find_best_thresh(preds, scores, na_probs, qid_to_has_ans):
     if qid_to_has_ans[qid]:
       diff = scores[qid]
     else:
-      if preds[qid]:
-        diff = -1
-      else:
-        diff = 0
+      diff = -1 if preds[qid] else 0
     cur_score += diff
     if cur_score > best_score:
       best_score = cur_score
@@ -237,10 +231,7 @@ def _compute_softmax(scores):
     exp_scores.append(x)
     total_sum += x
 
-  probs = []
-  for score in exp_scores:
-    probs.append(score / total_sum)
-  return probs
+  return [score / total_sum for score in exp_scores]
 
 
 class SquadExample(object):
@@ -268,13 +259,11 @@ class SquadExample(object):
 
   def __repr__(self):
     s = ""
-    s += "qas_id: %s" % (preprocess_utils.printable_text(self.qas_id))
-    s += ", question_text: %s" % (
-        preprocess_utils.printable_text(self.question_text))
-    s += ", paragraph_text: [%s]" % (" ".join(self.paragraph_text))
+    s += f"qas_id: {preprocess_utils.printable_text(self.qas_id)}"
+    s += f", question_text: {preprocess_utils.printable_text(self.question_text)}"
+    s += f', paragraph_text: [{" ".join(self.paragraph_text)}]'
     if self.start_position:
       s += ", start_position: %d" % (self.start_position)
-    if self.start_position:
       s += ", is_impossible: %r" % (self.is_impossible)
     return s
 
@@ -290,10 +279,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
   for feature in all_features:
     example_index_to_features[feature.example_index].append(feature)
 
-  unique_id_to_result = {}
-  for result in all_results:
-    unique_id_to_result[result.unique_id] = result
-
+  unique_id_to_result = {result.unique_id: result for result in all_results}
   all_predictions = collections.OrderedDict()
   all_nbest_json = collections.OrderedDict()
   scores_diff_json = collections.OrderedDict()
@@ -402,7 +388,7 @@ def write_predictions(all_examples, all_features, all_results, n_best_size,
       output["end_log_prob"] = entry.end_log_prob
       nbest_json.append(output)
 
-    assert len(nbest_json) >= 1
+    assert nbest_json
     assert best_non_null_entry is not None
 
     score_diff = score_null
@@ -488,28 +474,16 @@ def _convert_index(index, pos, M=None, is_start=True):
   assert index[front] is not None or index[rear] is not None
   if index[front] is None:
     if index[rear] >= 1:
-      if is_start:
-        return 0
-      else:
-        return index[rear] - 1
+      return 0 if is_start else index[rear] - 1
     return index[rear]
   if index[rear] is None:
     if M is not None and index[front] < M - 1:
-      if is_start:
-        return index[front] + 1
-      else:
-        return M - 1
+      return index[front] + 1 if is_start else M - 1
     return index[front]
   if is_start:
-    if index[rear] > index[front] + 1:
-      return index[front] + 1
-    else:
-      return index[rear]
+    return index[front] + 1 if index[rear] > index[front] + 1 else index[rear]
   else:
-    if index[rear] > index[front] + 1:
-      return index[rear] - 1
-    else:
-      return index[front]
+    return index[rear] - 1 if index[rear] > index[front] + 1 else index[front]
 
 
 def convert_examples_to_features(examples, sp_model, max_seq_length, doc_stride,
@@ -533,7 +507,7 @@ def convert_examples_to_features(examples, sp_model, max_seq_length, doc_stride,
         preprocess_utils.preprocess_text(example.question_text, lower=uncased))
 
     if len(query_tokens) > max_query_length:
-      query_tokens = query_tokens[0:max_query_length]
+      query_tokens = query_tokens[:max_query_length]
 
     paragraph_text = example.paragraph_text
     para_tokens = preprocess_utils.encode_pieces(
@@ -604,9 +578,7 @@ def convert_examples_to_features(examples, sp_model, max_seq_length, doc_stride,
     orig_to_chartok_index = [None] * N
     chartok_to_orig_index = [None] * M
     i, j = N - 1, M - 1
-    while i >= 0 and j >= 0:
-      if (i, j) not in g:
-        break
+    while i >= 0 and j >= 0 and (i, j) in g:
       if g[(i, j)] == 2:
         orig_to_chartok_index[i] = j
         chartok_to_orig_index[j] = i
@@ -752,8 +724,7 @@ def convert_examples_to_features(examples, sp_model, max_seq_length, doc_stride,
         doc_start = doc_span.start
         doc_end = doc_span.start + doc_span.length - 1
         out_of_span = False
-        if not (tok_start_position >= doc_start and
-                tok_end_position <= doc_end):
+        if tok_start_position < doc_start or tok_end_position > doc_end:
           out_of_span = True
         if out_of_span:
           # continue
@@ -807,11 +778,7 @@ def convert_examples_to_features(examples, sp_model, max_seq_length, doc_stride,
           # within the current process therefore we use example_index=None to
           # avoid being used in the future. # The current code does not use
           # example_index of training data.
-      if is_training:
-        feat_example_index = None
-      else:
-        feat_example_index = example_index
-
+      feat_example_index = None if is_training else example_index
       feature = InputFeatures(
           unique_id=unique_id,
           example_index=feat_example_index,

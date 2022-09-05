@@ -122,7 +122,7 @@ def run_executor(params,
         init_checkpoint=model_builder.make_restore_checkpoint_fn(),
         custom_callbacks=callbacks,
         save_config=True)
-  elif mode == 'eval' or mode == 'eval_once':
+  elif mode in ['eval', 'eval_once']:
 
     def _model_fn(params):
       return model_builder.build_model(params, mode=ModeKeys.PREDICT_WITH_GT)
@@ -169,7 +169,7 @@ def run_executor(params,
       logging.info('Final eval metric %s: %f', k, v)
     return results
   else:
-    raise ValueError('Mode not found: %s.' % mode)
+    raise ValueError(f'Mode not found: {mode}.')
 
 
 def run(callbacks=None):

@@ -75,8 +75,6 @@ class MaskrcnnModel(base_model.Model):
 
   def build_outputs(self, inputs, mode):
     is_training = mode == mode_keys.TRAIN
-    model_outputs = {}
-
     image = inputs['image']
     _, image_height, image_width, _ = image.get_shape().as_list()
     backbone_features = self._backbone_fn(image, is_training)
@@ -84,14 +82,13 @@ class MaskrcnnModel(base_model.Model):
 
     rpn_score_outputs, rpn_box_outputs = self._rpn_head_fn(
         fpn_features, is_training)
-    model_outputs.update({
+    model_outputs = {} | {
         'rpn_score_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  rpn_score_outputs),
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
+                              rpn_score_outputs),
         'rpn_box_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  rpn_box_outputs),
-    })
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32), rpn_box_outputs),
+    }
     input_anchor = anchor.Anchor(self._params.architecture.min_level,
                                  self._params.architecture.max_level,
                                  self._params.anchor.num_scales,
@@ -118,36 +115,34 @@ class MaskrcnnModel(base_model.Model):
           tf.tile(
               tf.expand_dims(tf.equal(matched_gt_classes, 0), axis=-1),
               [1, 1, 4]), tf.zeros_like(box_targets), box_targets)
-      model_outputs.update({
+      model_outputs |= {
           'class_targets': matched_gt_classes,
           'box_targets': box_targets,
-      })
+      }
 
     roi_features = spatial_transform_ops.multilevel_crop_and_resize(
         fpn_features, rpn_rois, output_size=7)
 
     class_outputs, box_outputs = self._frcnn_head_fn(roi_features, is_training)
 
-    model_outputs.update({
+    model_outputs |= {
         'class_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  class_outputs),
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32), class_outputs),
         'box_outputs':
-            tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                  box_outputs),
-    })
+        tf.nest.map_structure(lambda x: tf.cast(x, tf.float32), box_outputs),
+    }
 
     # Add this output to train to make the checkpoint loadable in predict mode.
     # If we skip it in train mode, the heads will be out-of-order and checkpoint
     # loading will fail.
     boxes, scores, classes, valid_detections = self._generate_detections_fn(
         box_outputs, class_outputs, rpn_rois, inputs['image_info'][:, 1:2, :])
-    model_outputs.update({
+    model_outputs |= {
         'num_detections': valid_detections,
         'detection_boxes': boxes,
         'detection_classes': classes,
         'detection_scores': scores,
-    })
+    }
 
     if not self._include_mask:
       return model_outputs
@@ -160,10 +155,10 @@ class MaskrcnnModel(base_model.Model):
 
       classes = tf.cast(classes, dtype=tf.int32)
 
-      model_outputs.update({
+      model_outputs |= {
           'mask_targets': mask_targets,
           'sampled_class_targets': classes,
-      })
+      }
     else:
       rpn_rois = boxes
       classes = tf.cast(classes, dtype=tf.int32)
@@ -174,13 +169,10 @@ class MaskrcnnModel(base_model.Model):
     mask_outputs = self._mrcnn_head_fn(mask_roi_features, classes, is_training)
 
     if is_training:
-      model_outputs.update({
-          'mask_outputs':
-              tf.nest.map_structure(lambda x: tf.cast(x, tf.float32),
-                                    mask_outputs),
-      })
+      model_outputs['mask_outputs'] = tf.nest.map_structure(
+          lambda x: tf.cast(x, tf.float32), mask_outputs)
     else:
-      model_outputs.update({'detection_masks': tf.nn.sigmoid(mask_outputs)})
+      model_outputs['detection_masks'] = tf.nn.sigmoid(mask_outputs)
 
     return model_outputs
 
@@ -316,9 +308,7 @@ class MaskrcnnModel(base_model.Model):
         'detection_scores': outputs['detection_scores'],
     }
     if self._include_mask:
-      predictions.update({
-          'detection_masks': outputs['detection_masks'],
-      })
+      predictions['detection_masks'] = outputs['detection_masks']
 
     if 'groundtruths' in labels:
       predictions['source_id'] = labels['groundtruths']['source_id']

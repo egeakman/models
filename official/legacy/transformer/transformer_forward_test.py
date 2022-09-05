@@ -25,13 +25,10 @@ from official.nlp.modeling import models
 
 def _count_params(layer, trainable_only=True):
   """Returns the count of all model parameters, or just trainable ones."""
-  if not trainable_only:
-    return layer.count_params()
-  else:
-    return int(
-        np.sum([
-            tf.keras.backend.count_params(p) for p in layer.trainable_weights
-        ]))
+  return (int(
+      np.sum([
+          tf.keras.backend.count_params(p) for p in layer.trainable_weights
+      ])) if trainable_only else layer.count_params())
 
 
 def _create_model(params, is_train):

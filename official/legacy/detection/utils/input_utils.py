@@ -44,9 +44,8 @@ def pad_to_fixed_size(input_tensor, size, constant_values=0):
     padding_shape.append(padding_length)
 
   # Copies shapes of the rest of input shape dimensions.
-  for i in range(1, len(input_shape)):
-    padding_shape.append(tf.shape(input=input_tensor)[i])
-
+  padding_shape.extend(
+      tf.shape(input=input_tensor)[i] for i in range(1, len(input_shape)))
   # Pads input tensor to the fixed first dimension.
   paddings = tf.cast(constant_values * tf.ones(padding_shape),
                      input_tensor.dtype)
@@ -91,15 +90,12 @@ def compute_padded_size(desired_size, stride):
     padded_size: a `Tensor` or `int` list/tuple of two elements representing
       [height, width] of the padded output image size.
   """
-  if isinstance(desired_size, list) or isinstance(desired_size, tuple):
-    padded_size = [
-        int(math.ceil(d * 1.0 / stride) * stride) for d in desired_size
-    ]
-  else:
-    padded_size = tf.cast(
-        tf.math.ceil(tf.cast(desired_size, dtype=tf.float32) / stride) * stride,
-        tf.int32)
-  return padded_size
+  return ([
+      int(math.ceil(d * 1.0 / stride) * stride) for d in desired_size
+  ] if isinstance(desired_size, (list, tuple)) else tf.cast(
+      tf.math.ceil(tf.cast(desired_size, dtype=tf.float32) / stride) * stride,
+      tf.int32,
+  ))
 
 
 def resize_and_crop_image(image,
@@ -146,7 +142,7 @@ def resize_and_crop_image(image,
       scaled dimension / original dimension.
   """
   with tf.name_scope('resize_and_crop_image'):
-    image_size = tf.cast(tf.shape(input=image)[0:2], tf.float32)
+    image_size = tf.cast(tf.shape(input=image)[:2], tf.float32)
 
     random_jittering = (aug_scale_min != 1.0 or aug_scale_max != 1.0)
 
@@ -245,7 +241,7 @@ def resize_and_crop_image_v2(image,
       scaled dimension / original dimension.
   """
   with tf.name_scope('resize_and_crop_image_v2'):
-    image_size = tf.cast(tf.shape(image)[0:2], tf.float32)
+    image_size = tf.cast(tf.shape(image)[:2], tf.float32)
 
     scale_using_short_side = (
         short_side / tf.math.minimum(image_size[0], image_size[1]))
@@ -349,9 +345,8 @@ def resize_and_crop_masks(masks, image_scale, output_size, offset):
   scaled_masks = scaled_masks[:, offset[0]:offset[0] + output_size[0],
                               offset[1]:offset[1] + output_size[1], :]
 
-  output_masks = tf.image.pad_to_bounding_box(scaled_masks, 0, 0,
-                                              output_size[0], output_size[1])
-  return output_masks
+  return tf.image.pad_to_bounding_box(scaled_masks, 0, 0, output_size[0],
+                                      output_size[1])
 
 
 def random_horizontal_flip(image, boxes=None, masks=None):

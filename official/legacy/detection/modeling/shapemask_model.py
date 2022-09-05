@@ -101,8 +101,6 @@ class ShapeMaskModel(base_model.Model):
         scale=self._params.shapemask_parser.outer_box_scale)
     valid_outer_boxes = tf.reshape(valid_outer_boxes, tf.shape(valid_boxes))
 
-    # Wrapping if else code paths into a layer to make the checkpoint loadable
-    # in prediction mode.
     class SampledBoxesLayer(tf.keras.layers.Layer):
       """ShapeMask model function."""
 
@@ -140,14 +138,14 @@ class ShapeMaskModel(base_model.Model):
     }
 
     if not is_training:
-      model_outputs.update({
+      model_outputs |= {
           'num_detections': valid_detections,
           'detection_boxes': valid_boxes,
           'detection_outer_boxes': valid_outer_boxes,
           'detection_masks': fine_mask_logits,
           'detection_classes': valid_classes,
           'detection_scores': valid_scores,
-      })
+      }
 
     return model_outputs
 
@@ -208,49 +206,53 @@ class ShapeMaskModel(base_model.Model):
         [params.shapemask_parser.num_channels])
     if is_training:
       batch_size = params.train.batch_size
-      input_layer = {
+      return {
           'image':
-              tf.keras.layers.Input(
-                  shape=input_shape,
-                  batch_size=batch_size,
-                  name='image',
-                  dtype=tf.bfloat16 if self._use_bfloat16 else tf.float32),
+          tf.keras.layers.Input(
+              shape=input_shape,
+              batch_size=batch_size,
+              name='image',
+              dtype=tf.bfloat16 if self._use_bfloat16 else tf.float32,
+          ),
           'image_info':
-              tf.keras.layers.Input(
-                  shape=[4, 2], batch_size=batch_size, name='image_info'),
+          tf.keras.layers.Input(
+              shape=[4, 2], batch_size=batch_size, name='image_info'),
           'mask_classes':
-              tf.keras.layers.Input(
-                  shape=[params.shapemask_parser.num_sampled_masks],
-                  batch_size=batch_size,
-                  name='mask_classes',
-                  dtype=tf.int64),
+          tf.keras.layers.Input(
+              shape=[params.shapemask_parser.num_sampled_masks],
+              batch_size=batch_size,
+              name='mask_classes',
+              dtype=tf.int64,
+          ),
           'mask_outer_boxes':
-              tf.keras.layers.Input(
-                  shape=[params.shapemask_parser.num_sampled_masks, 4],
-                  batch_size=batch_size,
-                  name='mask_outer_boxes',
-                  dtype=tf.float32),
+          tf.keras.layers.Input(
+              shape=[params.shapemask_parser.num_sampled_masks, 4],
+              batch_size=batch_size,
+              name='mask_outer_boxes',
+              dtype=tf.float32,
+          ),
           'mask_boxes':
-              tf.keras.layers.Input(
-                  shape=[params.shapemask_parser.num_sampled_masks, 4],
-                  batch_size=batch_size,
-                  name='mask_boxes',
-                  dtype=tf.float32),
+          tf.keras.layers.Input(
+              shape=[params.shapemask_parser.num_sampled_masks, 4],
+              batch_size=batch_size,
+              name='mask_boxes',
+              dtype=tf.float32,
+          ),
       }
     else:
       batch_size = params.eval.batch_size
-      input_layer = {
+      return {
           'image':
-              tf.keras.layers.Input(
-                  shape=input_shape,
-                  batch_size=batch_size,
-                  name='image',
-                  dtype=tf.bfloat16 if self._use_bfloat16 else tf.float32),
+          tf.keras.layers.Input(
+              shape=input_shape,
+              batch_size=batch_size,
+              name='image',
+              dtype=tf.bfloat16 if self._use_bfloat16 else tf.float32,
+          ),
           'image_info':
-              tf.keras.layers.Input(
-                  shape=[4, 2], batch_size=batch_size, name='image_info'),
+          tf.keras.layers.Input(
+              shape=[4, 2], batch_size=batch_size, name='image_info'),
       }
-    return input_layer
 
   def build_model(self, params, mode):
     if self._keras_model is None:
@@ -274,15 +276,15 @@ class ShapeMaskModel(base_model.Model):
     for field in required_output_fields:
       if field not in outputs:
         raise ValueError(
-            '"{}" is missing in outputs, requried {} found {}'.format(
-                field, required_output_fields, outputs.keys()))
+            f'"{field}" is missing in outputs, requried {required_output_fields} found {outputs.keys()}'
+        )
 
     required_label_fields = ['image_info']
     for field in required_label_fields:
       if field not in labels:
         raise ValueError(
-            '"{}" is missing in labels, requried {} found {}'.format(
-                field, required_label_fields, labels.keys()))
+            f'"{field}" is missing in labels, requried {required_label_fields} found {labels.keys()}'
+        )
 
     predictions = {
         'image_info': labels['image_info'],

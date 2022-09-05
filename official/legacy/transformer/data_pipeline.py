@@ -90,8 +90,7 @@ def _filter_max_length(example, max_length=256):
 
 def _get_example_length(example):
   """Returns the maximum length between the example inputs and targets."""
-  length = tf.maximum(tf.shape(example[0])[0], tf.shape(example[1])[0])
-  return length
+  return tf.maximum(tf.shape(example[0])[0], tf.shape(example[1])[0])
 
 
 def _create_min_max_boundaries(max_length,

@@ -106,13 +106,7 @@ class DataProcessor(object):
     """Reads a tab separated value file."""
     with tf.io.gfile.GFile(input_file, "r") as f:
       reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
-      lines = []
-      for line in reader:
-        # pylint: disable=g-explicit-length-test
-        if len(line) == 0:
-          continue
-        lines.append(line)
-      return lines
+      return [line for line in reader if len(line) != 0]
 
 
 class GLUEProcessor(DataProcessor):
@@ -162,7 +156,7 @@ class GLUEProcessor(DataProcessor):
         continue
       if i == 0 and self.test_contains_header and set_type == "test":
         continue
-      guid = "%s-%s" % (set_type, i)
+      guid = f"{set_type}-{i}"
 
       a_column = (
           self.text_a_column if set_type != "test" else self.test_text_a_column)
@@ -298,7 +292,7 @@ class StsbProcessor(GLUEProcessor):
         continue
       if i == 0 and self.test_contains_header and set_type == "test":
         continue
-      guid = "%s-%s" % (set_type, i)
+      guid = f"{set_type}-{i}"
 
       a_column = (
           self.text_a_column if set_type != "test" else self.test_text_a_column)
@@ -398,10 +392,10 @@ def main(_):
   task_name = FLAGS.task_name.lower()
 
   if task_name not in processors:
-    raise ValueError("Task not found: %s" % (task_name))
+    raise ValueError(f"Task not found: {task_name}")
 
   processor = processors[task_name]()
-  label_list = processor.get_labels() if not FLAGS.is_regression else None
+  label_list = None if FLAGS.is_regression else processor.get_labels()
 
   sp = spm.SentencePieceProcessor()
   sp.Load(FLAGS.spiece_model_file)
